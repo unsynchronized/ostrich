@@ -17,7 +17,8 @@
 #include <net/ethernet.h> 
 
 /*
- * TAP-based ostrich implementation.
+ * TAP-based ostrich implementation; pulls packets from interface (default eth2),
+ * processes with ostrich, then shunts the remaining packets to a tunnel.
  *
  * References:
  *   - linux Documentation/networking/tuntap.txt
@@ -155,7 +156,8 @@ int main(int argc, char *argv[]) {
         if(should_discard((unsigned char *const)inbuf, retval)) {
             continue;
         }
-        DEBUG("recv %lu bytes namelen %lu  controllen %lu", (unsigned long)retval, (unsigned long)msgh.msg_namelen, (unsigned long)msgh.msg_controllen);
+        struct sockaddr_ll *insll = (struct sockaddr_ll *)msgh.msg_name;
+        DEBUG("recv %lu bytes namelen %lu  controllen %lu  proto 0x%hx", (unsigned long)retval, (unsigned long)msgh.msg_namelen, (unsigned long)msgh.msg_controllen, ntohs(insll->sll_protocol));
         if(msgh.msg_namelen > sizeof(struct sockaddr_ll)) {
             DEBUG("msg_namelen not the expected size (%lu)!  namelen:", sizeof(struct sockaddr_ll));
             hexdump(msgh.msg_name, msgh.msg_namelen);
@@ -163,17 +165,12 @@ int main(int argc, char *argv[]) {
             hexdump(inbuf, retval);
             break;
         }
-        struct sockaddr_ll *insll = (struct sockaddr_ll *)msgh.msg_name;
         DEBUG("packet:");
         hexdump(inbuf, retval);
         fprintf(stderr, "address: ");
         hexdump((char * const)insll->sll_addr, MIN(insll->sll_halen, sizeof(insll->sll_addr)));
         fprintf(stderr, "\n");
-        struct sockaddr_ll sll;
-        sll.sll_family = AF_PACKET;
-        sll.sll_protocol = insll->sll_protocol;
-        sll.sll_ifindex = tapifidx;
-        //int sret = sendto(tapfd, inbuf, retval, 0, (struct sockaddr *)&sll, sizeof(sll));
+
         allbuf[0] = allbuf[1] = 0;
         memcpy(&allbuf[2], &insll->sll_protocol, 2);
         int sret = write(tapfd, allbuf, retval+4);
