@@ -1,0 +1,105 @@
+--- opcodes
+
+SETFLAG f val: set packet flag
+    flags:
+        deliver_packet: deliver packet to original destination
+            values: true false
+
+DIVERT n: copy packet to target n, if channel is available
+    filure conditions:
+
+
+A: accumulator (32-bit)
+X: index       (32-bit)
+M[]: memory store, seeded with data
+P[]: packet
+
+INSERT [M|P] startoff n: insert n bytes (will be zeroed)
+
+DELETE [M|P] startoff n: delete n bytes (will be zeroed)
+
+COPY src srcoff dst dstoff nbytes: copy bytes
+
+FIND mstart mlength
+    starts looking at P[X]
+    A <- 0 if found, 1 if not
+    X <- index if found, X if not
+
+MOV[BWH] dst src n 
+    addressing modes: 
+        A       <- register             (src, dst)
+        X       <- register             (src, dst)
+        M[n]    <- indexed              (src, dst)
+        P[n]    <- indexed              (src, dst)
+        M[X+n]  <- indexed              (src, dst)
+        P[X+n]  <- indexed              (src, dst)
+        n       <- immediate            (src)
+        ~A      <- register             (src)
+        -A      <- register             (src)
+        4*(P[n]&0xf)  <- ipv4 hdr len   (src)
+        4*(M[n]&0xf)  <- ipv4 hdr len   (src)
+        P_len   <- special              (src)
+        M_len   <- special              (src)
+        TLProto <- special              (src)
+
+ADD [n|X]: A <- A + src
+SUB [n|X]: A <- A - src
+MUL [n|X]: A <- A * src
+DIV [n|X]: A <- A / src
+AND [n|X]: A <- A & src
+OR  [n|X]: A <- A | src
+XOR [n|X]: A <- A ^ src
+NOT [n|X]: A <- A ~ src
+SHL [n|X]: A <- A << src
+SHR [n|X]: A <- A >> src
+
+JMP dst n       (n is signed)
+    pc = pc + dst
+    destination types:
+        n
+        A+n
+
+JGT truedst falsedst op      (truedst and falsedst are signed)
+    operand types: [n|X]
+    if(A > op) {
+        pc = pc + truedst
+    } else {
+        pc = pc + falsedst
+    }   
+
+JGE truedst falsedst n      (truedst and falsedst are signed)
+    operand types: [n|X]
+    if(A >= n) {
+        pc = pc + truedst
+    } else {
+        pc = pc + falsedst
+    }   
+
+JEQ truedst falsedst n      (truedst and falsedst are signed)
+    operand types: [n|X]
+    if(A == n) {
+        pc = pc + truedst
+    } else {
+        pc = pc + falsedst
+    }   
+
+JSET truedst falsedst n      (truedst and falsedst are signed)
+    operand types: [n|X]
+    if(A & n) {
+        pc = pc + truedst
+    } else {
+        pc = pc + falsedst
+    }   
+
+EXIT: stop execution of program
+
+EXEC n: interpret M[n] as a command 
+
+
+        
+
+
+setflag deliver_packet false
+divert 
+
+

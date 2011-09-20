@@ -1,0 +1,34 @@
+- sniff traffic with pcap-style filter syntax; exfiltrate data selectively
+- intercept DNS; change responses programatically
+- intercept HTTP/HTTPS.  act either programatically or interactively (e.g. through burp)
+- ability to initiate packets (e.g. start a connection from outside to inside or outside)
+- dumping of ARP/NAT/routing tables
+- backdoor into admin functionality
+- remote access via programmable filters (exec opcode)
+- tunnelling via dns, with periodic callouts
+- dyndns?
+
+
+administrative commands:
+    - set_filter f: set filter to f
+    - get_filter: retrieve current filter
+    - remove_filter: remove filter; replace with the default (passthrough)
+
+
+config options
+    - udp_setup: srcip srcport  
+    - udp_prefix: magic "attention" prefix inside payload
+    - instructions_per_packet: max number of instructions executed per packet
+    - get_capabilities
+        - available data for 
+
+
+
+
+
+reference apps
+    - etherpuppet 
+    - scapy
+
+references
+    - bpf documentation/code
