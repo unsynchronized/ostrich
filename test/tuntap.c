@@ -61,9 +61,24 @@ bool should_discard(unsigned char *const packet, unsigned long size) {
     return 0;
 }
 
+void interface_up(char *const ifname, int ifidx) {
+    int sockfd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
+    if(ioctl(sockfd, SIOCGIFFLAGS, &ifr) == -1) {
+        err(1, "can't get IF flags for %s", ifname);
+    }
+    ifr.ifr_flags |= IFF_UP;
+    if(ioctl(sockfd, SIOCSIFFLAGS, &ifr) == -1) {
+        err(1, "can't set IF flags for %s", ifname);
+    }
+    close(sockfd);
+}
+
 int main(int argc, char *argv[]) {
     char *const inifname = DEFAULT_INIF;
-    int tapfd = open("/dev/net/tun", O_RDWR);
+    int tapfd = open("/dev/net/tun", O_RDWR), tapifidx;
     if(tapfd == -1) {
         err(1, "can't open tun device");
     }
@@ -79,7 +94,11 @@ int main(int argc, char *argv[]) {
     }
     strncpy(ifname, ifr.ifr_name, sizeof(ifname));
     ifname[sizeof(ifname)-1] = 0;
-    DEBUG("--- created interface: %s", ifname);
+    tapifidx = ifr.ifr_ifindex;
+    DEBUG("--- created interface %d: %s", ifr.ifr_ifindex, ifname);
+    memset(&ifr, 0, sizeof(ifr));
+    ifr.ifr_ifindex = tapifidx;
+    interface_up(ifname, tapifidx);
 
     int infd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
     if(infd == -1) {
@@ -100,7 +119,9 @@ int main(int argc, char *argv[]) {
         err(1, "can't bind input socket to interface");
     }
 
-    char inbuf[262144];
+    char allbuf[262148];
+    char *inbuf = &allbuf[4];
+    const unsigned int inbufsz = 262144;
     char namebuf[1024];
     char controlbuf[1024];
 
@@ -109,7 +130,7 @@ int main(int argc, char *argv[]) {
         memset(controlbuf, 0, sizeof(controlbuf));
         struct iovec iov = {
             .iov_base = inbuf,
-            .iov_len = sizeof(inbuf)
+            .iov_len = inbufsz
         };
         struct msghdr msgh = {
             .msg_name = namebuf,
@@ -147,9 +168,19 @@ int main(int argc, char *argv[]) {
         hexdump(inbuf, retval);
         fprintf(stderr, "address: ");
         hexdump((char * const)insll->sll_addr, MIN(insll->sll_halen, sizeof(insll->sll_addr)));
-
         fprintf(stderr, "\n");
-
+        struct sockaddr_ll sll;
+        sll.sll_family = AF_PACKET;
+        sll.sll_protocol = insll->sll_protocol;
+        sll.sll_ifindex = tapifidx;
+        //int sret = sendto(tapfd, inbuf, retval, 0, (struct sockaddr *)&sll, sizeof(sll));
+        allbuf[0] = allbuf[1] = 0;
+        memcpy(&allbuf[2], &insll->sll_protocol, 2);
+        int sret = write(tapfd, allbuf, retval+4);
+        if(sret == -1) {
+            warn("error while sending to interface");
+            break;
+        }
     }
     close(tapfd);
     close(infd);
