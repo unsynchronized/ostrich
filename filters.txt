@@ -1,105 +1,253 @@
 --- opcodes
 
-SETFLAG f val: set packet flag
-    flags:
-        deliver_packet: deliver packet to original destination
-            values: true false
-
-DIVERT n: copy packet to target n, if channel is available
-    filure conditions:
-
-
-A: accumulator (32-bit)
-X: index       (32-bit)
+A: accumulator     (32-bit)
+X: index/GP        (32-bit)
+Y: index/GP        (32-bit)
 M[]: memory store, seeded with data
 P[]: packet
 
-INSERT [M|P] startoff n: insert n bytes (will be zeroed)
+SETFLAG f val: set packet flag
+    opcodes:
+        0x09 FF AA BB CC DD
+    flags:
+        0x00: deliver_packet: deliver packet in P to original destination
+            values: 0 1
 
-DELETE [M|P] startoff n: delete n bytes (will be zeroed)
+DIVERT [M|P] n length: copy M[X] or P[X] to target n, if channel is available
+    results: 
+        A <- 1 if success, 0 if failure
+    opcodes: 
+        0x02 nn aa bb cc dd: copy M[X+(X+0xaabbccdd)] to channel n
+        0x03 nn aa bb cc dd: copy P[X:(X+0xaabbccdd)] to channel n
 
-COPY src srcoff dst dstoff nbytes: copy bytes
+INSERT [M|P]: insert n bytes (will be zeroed)
+    results: 
+        A <- 1 if success, 0 if failure
+    opcodes:
+        0x04 0x00 .. .. .. ..: insert A bytes starting at position M[X]
+        0x04 0x01 .. .. .. ..: insert A bytes starting at position P[X]
 
-FIND mstart mlength
-    starts looking at P[X]
-    A <- 0 if found, 1 if not
-    X <- index if found, X if not
+DELETE [M|P]: delete n bytes (will be zeroed)
+    results: 
+        A <- 1 if success, 0 if failure
+    opcodes:
+        0x05 0x00 .. .. .. ..: insert A bytes starting at position M[X]
+        0x05 0x01 .. .. .. ..: insert A bytes starting at position P[X]
+
+COPY dst src: copy A bytes from src[X] to dst[Y]
+    results: 
+        A <- 1 if success, 0 if failure
+    opcodes:
+        0x06 0x00 .. .. .. ..: copy A bytes from M[X] to P[Y]
+        0x06 0x01 .. .. .. ..: copy A bytes from P[X] to M[Y]
+
+FIND 
+    starts looking at P[X] for A bytes that match those starting at M[Y]
+    results:
+        A <- 0 if found, 1 if not
+        X <- index if found, X if not
+    opcodes:
+        0x07 .. .. .. .. ..
 
 MOV[BWH] dst src n 
+    moves the desired width of src into dst, zero-extending dst
+    opcodes:
+        0x10 DSB AA BB CC DD  MOVB
+        0x11 DSB AA BB CC DD  MOVW
+        0x12 DSB AA BB CC DD  MOVH
+    where DSB is: 
+     LSB 0              15 16             31
+         +-----------------+-----------------+
+         |     Source      |   Destination   |
+         +-----------------+-----------------+
     addressing modes: 
-        A       <- register             (src, dst)
-        X       <- register             (src, dst)
-        M[n]    <- indexed              (src, dst)
-        P[n]    <- indexed              (src, dst)
-        M[X+n]  <- indexed              (src, dst)
-        P[X+n]  <- indexed              (src, dst)
-        n       <- immediate            (src)
-        ~A      <- register             (src)
-        -A      <- register             (src)
-        4*(P[n]&0xf)  <- ipv4 hdr len   (src)
-        4*(M[n]&0xf)  <- ipv4 hdr len   (src)
-        P_len   <- special              (src)
-        M_len   <- special              (src)
-        TLProto <- special              (src)
+        0:   A       <- register             (src, dst)
+        1:   X       <- register             (src, dst)
+        2:   Y       <- register             (src, dst)
+        3:   M[n]    <- indexed              (src, dst)
+        4:   P[n]    <- indexed              (src, dst)
+        5:   M[X+n]  <- indexed              (src, dst)
+        6:   P[X+n]  <- indexed              (src, dst)
+        7:   n       <- immediate            (src)
+        8:   ~A      <- register             (src)
+        9:   -A      <- register             (src)
+        10:  4*(P[n]&0xf)  <- ipv4 hdr len   (src)
+        11:  4*(M[n]&0xf)  <- ipv4 hdr len   (src)
 
-ADD [n|X]: A <- A + src
-SUB [n|X]: A <- A - src
-MUL [n|X]: A <- A * src
-DIV [n|X]: A <- A / src
-AND [n|X]: A <- A & src
-OR  [n|X]: A <- A | src
-XOR [n|X]: A <- A ^ src
-NOT [n|X]: A <- A ~ src
-SHL [n|X]: A <- A << src
-SHR [n|X]: A <- A >> src
+MOVS dst type: move special into dst, zero-extending 
+    opcodes:
+        0x13 TDB AA BB CC DD
+    where TDB is: 
+     LSB 0              15 16             31
+         +-----------------+-----------------+
+         |      Type       |   Destination   |
+         +-----------------+-----------------+
+    types:
+        0:   P_len      <- current length of P
+        1:   M_len      <- current length of M
+        2:   P_initlen  <- initial length of P (before filter started)
+        3:   TLProto    <- top-level protocol type (XXX) 
+        4:   IPhdroff   <- P byte offset of start of ip header
+        5:   ETHhdroff  <- P byte offset of start of ethernet header
+        6:   cur_time   <- current time in seconds
+        7:   TCPhdroff  <- P byte offset of start of tcp header
+    destination addressing modes:
+        0:   A       <- register             (dst)
+        1:   X       <- register             (dst)
+        2:   Y       <- register             (dst)
+        3:   M[n]    <- indexed              (dst)
+        4:   P[n]    <- indexed              (dst)
+        5:   M[X+n]  <- indexed              (dst)
+        6:   P[X+n]  <- indexed              (dst)
 
-JMP dst n       (n is signed)
+ADD [n|X|Y]: A <- A + src
+    0x20 0x00 AA BB CC DD:   A <- A + 0xAABBCCDD
+    0x20 0x01 .. .. .. ..:   A <- A + X
+    0x20 0x02 .. .. .. ..:   A <- A + Y
+
+SUB [n|X|Y]: A <- A - src
+    0x21 0x00 AA BB CC DD:   A <- A - 0xAABBCCDD
+    0x21 0x01 .. .. .. ..:   A <- A - X
+    0x21 0x02 .. .. .. ..:   A <- A - Y
+
+MUL [n|X|Y]: A <- A * src
+    0x22 0x00 AA BB CC DD:   A <- A * 0xAABBCCDD
+    0x22 0x01 .. .. .. ..:   A <- A * X
+    0x22 0x02 .. .. .. ..:   A <- A * Y
+
+DIV [n|X|Y]: A <- A / src
+    0x23 0x00 AA BB CC DD:   A <- A / 0xAABBCCDD
+    0x23 0x01 .. .. .. ..:   A <- A / X
+    0x23 0x02 .. .. .. ..:   A <- A / Y
+
+AND [n|X|Y]: A <- A & src
+    0x24 0x00 AA BB CC DD:   A <- A & 0xAABBCCDD
+    0x24 0x01 .. .. .. ..:   A <- A & X
+    0x24 0x02 .. .. .. ..:   A <- A & Y
+
+OR  [n|X|Y]: A <- A | src
+    0x25 0x00 AA BB CC DD:   A <- A | 0xAABBCCDD
+    0x25 0x01 .. .. .. ..:   A <- A | X
+    0x25 0x02 .. .. .. ..:   A <- A | Y
+
+XOR [n|X|Y]: A <- A ^ src
+    0x26 0x00 AA BB CC DD:   A <- A ^ 0xAABBCCDD
+    0x26 0x01 .. .. .. ..:   A <- A ^ X
+    0x26 0x02 .. .. .. ..:   A <- A ^ Y
+
+SHL [n|X|Y]: A <- A << src
+    0x27 0x00 AA BB CC DD:   A <- A << 0xAABBCCDD
+    0x27 0x01 .. .. .. ..:   A <- A << X
+    0x27 0x02 .. .. .. ..:   A <- A << Y
+
+SHR [n|X|Y]: A <- A >> src
+    0x28 0x00 AA BB CC DD:   A <- A >> 0xAABBCCDD
+    0x28 0x01 .. .. .. ..:   A <- A >> X
+    0x28 0x02 .. .. .. ..:   A <- A >> Y
+
+
+JMP dst n       (n is 2s-complement signed)
     pc = pc + dst
     destination types:
         n
         A+n
+    opcodes: 
+        0x30 0x00 AA BB CC DD:  pc <- pc + n
+        0x30 0x01 AA BB CC DD:  pc <- pc + A + n
 
-JGT truedst falsedst op      (truedst and falsedst are signed)
-    operand types: [n|X]
+JGT op truedst              (truedst is 2s-complement signed)
+    operand types: [0|X|Y]
     if(A > op) {
         pc = pc + truedst
-    } else {
-        pc = pc + falsedst
     }   
+    opcodes:
+        0x31 0x00 AA BB CC DD:  op = 0
+        0x31 0x01 AA BB CC DD:  op = X
+        0x31 0x02 AA BB CC DD:  op = Y
 
-JGE truedst falsedst n      (truedst and falsedst are signed)
-    operand types: [n|X]
+JLT op truedst              (truedst is 2s-complement signed)
+    operand types: [0|X|Y]
+    if(A < op) {
+        pc = pc + truedst
+    }   
+    opcodes:
+        0x32 0x00 AA BB CC DD:  op = 0
+        0x32 0x01 AA BB CC DD:  op = X
+        0x32 0x02 AA BB CC DD:  op = Y
+
+JGE op truedst              (truedst is 2s-complement signed)
+    operand types: [n|X|Y]
     if(A >= n) {
         pc = pc + truedst
-    } else {
-        pc = pc + falsedst
     }   
+    opcodes:
+        0x33 0x00 AA BB CC DD:  op = 0
+        0x33 0x01 AA BB CC DD:  op = X
+        0x33 0x02 AA BB CC DD:  op = Y
 
-JEQ truedst falsedst n      (truedst and falsedst are signed)
-    operand types: [n|X]
-    if(A == n) {
+JLE op truedst              (truedst is 2s-complement signed)
+    operand types: [0|X|Y]
+    if(A <= op) {
         pc = pc + truedst
-    } else {
-        pc = pc + falsedst
     }   
+    opcodes:
+        0x34 0x00 AA BB CC DD:  op = 0
+        0x34 0x01 AA BB CC DD:  op = X
+        0x34 0x02 AA BB CC DD:  op = Y
 
-JSET truedst falsedst n      (truedst and falsedst are signed)
-    operand types: [n|X]
-    if(A & n) {
+JEQ op truedst              (truedst is 2s-complement signed)
+    operand types: [0|X|Y]
+    if(A == op) {
         pc = pc + truedst
-    } else {
-        pc = pc + falsedst
     }   
+    opcodes:
+        0x35 0x00 AA BB CC DD:  op = 0
+        0x35 0x01 AA BB CC DD:  op = X
+        0x35 0x02 AA BB CC DD:  op = Y
+
+JSET op truedst             (truedst is 2s-complement signed)
+    operand types: [0|X|Y]
+    if((A & op) != 0) {
+        pc = pc + truedst
+    }   
+    opcodes:
+        0x35 0x00 AA BB CC DD:  op = 0
+        0x35 0x01 AA BB CC DD:  op = X
+        0x35 0x02 AA BB CC DD:  op = Y
 
 EXIT: stop execution of program
+    opcodes:
+        0x00 .. .. .. .. ..
 
-EXEC n: interpret M[n] as a command 
+EXEC n: interpret part of the text as a command 
+    opcodes:
+        0x01 0x00 AA BB CC DD:  start at P[0xAABBCCDD]
+        0x01 0x01 AA BB CC DD:  start at M[0xAABBCCDD]
 
-
+CHECKSUM
+    opcodes:
+        0x08 0x00 .. .. .. ..:  ipv4 header checksum; header starts at M[X]
+        0x08 0x01 .. .. .. ..:  ipv4 header checksum; header starts at P[X]
+        0x08 0x02 .. .. .. ..:  icmp checksum; ipv4 header starts at M[X]
+        0x08 0x03 .. .. .. ..:  icmp checksum; ipv4 header starts at P[X]
+        0x08 0x04 .. .. .. ..:  udp checksum; ipv4 header starts at M[X]
+        0x08 0x05 .. .. .. ..:  udp checksum; ipv4 header starts at P[X]
+        0x08 0x06 .. .. .. ..:  tcp checksum; ipv4 header starts at M[X]
+        0x08 0x07 .. .. .. ..:  tcp checksum; ipv4 header starts at P[X]
+    outputs:
+        A <- checksum
         
 
 
-setflag deliver_packet false
-divert 
+    setflag deliver_packet false
+    divert 
+
+
+    setflag deliver_packet true
+    ifmatch (not (udp and src dst port 53)) a
+    ifmatch (udp[
+a:
+    exit
+
 
 

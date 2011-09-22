@@ -1,10 +1,11 @@
 - sniff traffic with pcap-style filter syntax; exfiltrate data selectively
 - intercept DNS; change responses programatically
 - intercept HTTP/HTTPS.  act either programatically or interactively (e.g. through burp)
-- ability to initiate packets (e.g. start a connection from outside to inside or outside)
+- ability to initiate packets 
+- remote access via programmable filters (exec opcode)
+- tcp
 - dumping of ARP/NAT/routing tables
 - backdoor into admin functionality
-- remote access via programmable filters (exec opcode)
 - tunnelling via dns, with periodic callouts
 - dyndns?
 
@@ -16,6 +17,10 @@ administrative commands:
 
 
 config options
+    - list_channels type ipv4addr port: send channel data to channel n
+    - send_ram startaddr len n
+    - set_channel n type ipv4addr port
+    - del_channel n
     - udp_setup: srcip srcport  
     - udp_prefix: magic "attention" prefix inside payload
     - instructions_per_packet: max number of instructions executed per packet
