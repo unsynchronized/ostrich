@@ -3,7 +3,7 @@
 
 /* XXX: should be more machine-dependent */
 
-#include <stdio.h>
+#include <stddef.h>
 #include <stdbool.h>
 #include <sys/types.h>
 

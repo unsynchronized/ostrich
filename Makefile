@@ -12,7 +12,7 @@ all: $(OUTDIR) tests
 tests: tuntap 
 
 tuntap: $(TEST_OBJS) $(COMMON_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $<
+	$(CC) $(LDFLAGS) -o test/$@ $(TEST_OBJS) $(COMMON_OBJS)
 
 test/%.o: test/%.c
 	$(CC) $(CFLAGS) $(TEST_INCLUDES) $(INCLUDES) -c -o $@ $<

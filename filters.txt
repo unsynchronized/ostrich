@@ -41,6 +41,13 @@ COPY dst src: copy A bytes from src[X] to dst[Y]
         0x06 0x00 .. .. .. ..: copy A bytes from M[X] to P[Y]
         0x06 0x01 .. .. .. ..: copy A bytes from P[X] to M[Y]
 
+NEWPROG src crc32: 
+    opcodes:
+        0x0A 0x00 AA BB CC DD: copy A bytes from M[X] to the program; CRC32 == 0xAABBCCDD
+        0x0A 0x01 AA BB CC DD: copy A bytes from P[X] to the program; CRC32 == 0xAABBCCDD
+    results:
+        A <- 0 if failure; no return on success
+
 FIND 
     starts looking at P[X] for A bytes that match those starting at M[Y]
     results:
@@ -219,7 +226,7 @@ EXIT: stop execution of program
     opcodes:
         0x00 .. .. .. .. ..
 
-EXEC n: interpret part of the text as a command 
+EXEC n: interpret part of the text as a command.   
     opcodes:
         0x01 0x00 AA BB CC DD:  start at P[0xAABBCCDD]
         0x01 0x01 AA BB CC DD:  start at M[0xAABBCCDD]
