@@ -15,6 +15,7 @@
 #include <err.h>
 #include <netpacket/packet.h>
 #include <net/ethernet.h> 
+#include <pmlvm.h>
 
 /*
  * TAP-based ostrich implementation; pulls packets from interface (default eth2),
@@ -125,7 +126,10 @@ int main(int argc, char *argv[]) {
     const unsigned int inbufsz = 262144;
     char namebuf[1024];
     char controlbuf[1024];
+    struct pml_packet_info ppi;
 
+    pmlvm_init();
+    
     while(1) {
         memset(namebuf, 0, sizeof(namebuf));
         memset(controlbuf, 0, sizeof(controlbuf));
@@ -171,9 +175,22 @@ int main(int argc, char *argv[]) {
         hexdump((char * const)insll->sll_addr, MIN(insll->sll_halen, sizeof(insll->sll_addr)));
         fprintf(stderr, "\n");
 
+        memset(&ppi, 0, sizeof(ppi));
+        ppi.pkt = (unsigned char *)inbuf;
+        ppi.pktlen = retval;
+        switch(insll->sll_protocol) {
+            default:
+                ppi.tlproto = TLPROTO_UNKNOWN;
+                break;
+        }
+        if(pmlvm_process(&ppi) == 0) {
+            continue;
+        }
+        memmove(&allbuf[4], ppi.pkt, ppi.pktlen);
+
         allbuf[0] = allbuf[1] = 0;
         memcpy(&allbuf[2], &insll->sll_protocol, 2);
-        int sret = write(tapfd, allbuf, retval+4);
+        int sret = write(tapfd, allbuf, 4+ppi.pktlen);
         if(sret == -1) {
             warn("error while sending to interface");
             break;

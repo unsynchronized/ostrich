@@ -89,8 +89,8 @@ MOVS dst type: move special into dst, zero-extending
         3:   TLProto    <- top-level protocol type (XXX) 
         4:   IPhdroff   <- P byte offset of start of ip header
         5:   ETHhdroff  <- P byte offset of start of ethernet header
-        6:   cur_time   <- current time in seconds
-        7:   TCPhdroff  <- P byte offset of start of tcp header
+        6:   TCPhdroff  <- P byte offset of start of tcp header
+        7:   cur_time   <- current time in seconds
     destination addressing modes:
         0:   A       <- register             (dst)
         1:   X       <- register             (dst)
