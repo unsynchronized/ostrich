@@ -211,9 +211,9 @@ JSET op truedst             (truedst is 2s-complement signed)
         pc = pc + truedst
     }   
     opcodes:
-        0x35 0x00 AA BB CC DD:  op = 0
-        0x35 0x01 AA BB CC DD:  op = X
-        0x35 0x02 AA BB CC DD:  op = Y
+        0x36 0x00 AA BB CC DD:  op = 0
+        0x36 0x01 AA BB CC DD:  op = X
+        0x36 0x02 AA BB CC DD:  op = Y
 
 EXIT: stop execution of program
     opcodes:
