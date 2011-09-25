@@ -19,6 +19,7 @@ void pml_md_debug(const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
     va_end(ap);
 }
 
@@ -28,7 +29,9 @@ struct pmlvm_context *pml_md_alloc_context(void) {
 
 bool pml_md_retrieve(struct pmlvm_context *ctx) {
     static u_int8_t XXXprog[] = {
-        33
+        PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_P_N, PML_MOV_ADDR_A), 0x00, 0x00, 0x00, 0x60,
+        PML_ADD, PML_MATH_N, 0x1, 0x1, 0x1, 0x1,
+        PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_A, PML_MOV_ADDR_P_N), 0x00, 0x00, 0x00, 0x60,
     };
     ctx->mlen = 0;
     ctx->m = NULL;

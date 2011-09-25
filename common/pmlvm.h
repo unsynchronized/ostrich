@@ -4,7 +4,9 @@
 #include <pmltypes.h>
 
 #ifdef DEBUG
-#define DLOG(fmt, ...)  { pml_md_debug(fmt, __VA_ARGS__); }
+#define DLOG(fmt, ...) do { \
+        pml_md_debug(fmt, ## __VA_ARGS__); \
+    } while(0);
 #else
 #define DLOG(fmt, ...) 
 #endif /* DEBUG */
@@ -114,6 +116,7 @@ bool pmlvm_process(struct pml_packet_info *pinfo);
 /* MOV */
 #define PML_MOV_SRC(x) ((x) & 0xf)
 #define PML_MOV_DST(x) (((x) >> 4) & 0xf)
+#define PML_MOV_DSB(src, dst) (((src) & 0xf) | (((dst) & 0xf) << 4))
 
 #define PML_MOV_ADDR_A          0
 #define PML_MOV_ADDR_X          1
@@ -127,6 +130,7 @@ bool pmlvm_process(struct pml_packet_info *pinfo);
 #define PML_MOV_ADDR_NEG_A      9
 #define PML_MOV_ADDR_IP4HDR_P   10
 #define PML_MOV_ADDR_IP4HDR_M   11
+#define PML_MOV_DST_MAX         6  /* don't forget to update */
 #define PML_MOV_MAX             11 /* don't forget to update */
 
 
@@ -137,7 +141,7 @@ bool pmlvm_process(struct pml_packet_info *pinfo);
 #define PML_MOVS_TL_PROTO       3
 #define PML_MOVS_IP_HDROFF      4
 #define PML_MOVS_ETH_HDROFF     5
-#define PML_MOVS_TCP_HDROFF     6
+#define PML_MOVS_IP4TL_HDROFF   6
 #define PML_MOVS_CUR_TIME       7
 
 #define PML_MOVS_ADDR_A          0

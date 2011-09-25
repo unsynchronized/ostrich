@@ -29,8 +29,10 @@
  */
 
 #define DEFAULT_INIF "eth2"
-#define DEBUG(fmt, x...) fprintf(stderr, fmt "\n", ## x);
+#define DEBUGLOG(fmt, x...) fprintf(stderr, fmt "\n", ## x);
 #define MIN(x,y) ((x) > (y) ? (y) : (x))
+
+void pmlvm_debug(void);
 
 void hexdump(char *const buf, unsigned long size) {
     unsigned int curpos = 0;
@@ -97,7 +99,7 @@ int main(int argc, char *argv[]) {
     strncpy(ifname, ifr.ifr_name, sizeof(ifname));
     ifname[sizeof(ifname)-1] = 0;
     tapifidx = ifr.ifr_ifindex;
-    DEBUG("--- created interface %d: %s", ifr.ifr_ifindex, ifname);
+    DEBUGLOG("--- created interface %d: %s", ifr.ifr_ifindex, ifname);
     memset(&ifr, 0, sizeof(ifr));
     ifr.ifr_ifindex = tapifidx;
     interface_up(ifname, tapifidx);
@@ -148,7 +150,7 @@ int main(int argc, char *argv[]) {
         };
         ssize_t retval = recvmsg(infd, &msgh, 0);
         if(retval == 0) {
-            DEBUG("connection closed by socket");
+            DEBUGLOG("connection closed by socket");
             break;
         } else if(retval < 0) {
             if(errno == EINTR) {
@@ -161,15 +163,15 @@ int main(int argc, char *argv[]) {
             continue;
         }
         struct sockaddr_ll *insll = (struct sockaddr_ll *)msgh.msg_name;
-        DEBUG("recv %lu bytes namelen %lu  controllen %lu  proto 0x%hx", (unsigned long)retval, (unsigned long)msgh.msg_namelen, (unsigned long)msgh.msg_controllen, ntohs(insll->sll_protocol));
+        DEBUGLOG("recv %lu bytes namelen %lu  controllen %lu  proto 0x%hx", (unsigned long)retval, (unsigned long)msgh.msg_namelen, (unsigned long)msgh.msg_controllen, ntohs(insll->sll_protocol));
         if(msgh.msg_namelen > sizeof(struct sockaddr_ll)) {
-            DEBUG("msg_namelen not the expected size (%lu)!  namelen:", sizeof(struct sockaddr_ll));
+            DEBUGLOG("msg_namelen not the expected size (%lu)!  namelen:", sizeof(struct sockaddr_ll));
             hexdump(msgh.msg_name, msgh.msg_namelen);
-            DEBUG("packet:");
+            DEBUGLOG("packet:");
             hexdump(inbuf, retval);
             break;
         }
-        DEBUG("packet:");
+        DEBUGLOG("packet:");
         hexdump(inbuf, retval);
         fprintf(stderr, "address: ");
         hexdump((char * const)insll->sll_addr, MIN(insll->sll_halen, sizeof(insll->sll_addr)));
@@ -183,7 +185,9 @@ int main(int argc, char *argv[]) {
                 ppi.tlproto = TLPROTO_UNKNOWN;
                 break;
         }
-        if(pmlvm_process(&ppi) == 0) {
+        bool pret = pmlvm_process(&ppi);
+        pmlvm_debug();
+        if(pret == 0) {
             continue;
         }
         memmove(&allbuf[4], ppi.pkt, ppi.pktlen);

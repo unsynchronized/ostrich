@@ -1,5 +1,6 @@
 #include <pmlvm.h>
 #include <pmlmachdep.h>
+#include <assert.h>   // XXX: remove
 
 static struct pmlvm_context *ctx = NULL;
 
@@ -80,52 +81,198 @@ static void pml_copy(u_int8_t *p) {
     a = 1;
 }
 
+static void pml_math(u_int8_t opcode) {
+    const u_int8_t type = ctx->prog[pc+1];
+    u_int32_t roperand;
+    if(type == PML_MATH_N) {
+        roperand = EXTRACT4(&ctx->prog[pc+2]);
+    } else if(type == PML_MATH_X) {
+        roperand = x;
+    } else if(type == PML_MATH_Y) {
+        roperand = y;
+    } else {        /* XXX: should be checking before getting here */
+        return;
+    }
+    switch(opcode) {
+        case PML_ADD:
+            a = a + roperand;
+            break;
+        case PML_SUB:
+            a = a - roperand;
+            break;
+        case PML_MUL:
+            a = a * roperand;
+            break;
+        case PML_DIV:
+            if(roperand == 0) {
+                a = 0;
+            } else {
+                a = a / roperand;
+            }
+            break;
+        case PML_AND:
+            a = a & roperand;
+            break;
+        case PML_OR:
+            a = a | roperand;
+            break;
+        case PML_XOR:
+            a = a ^ roperand;
+            break;
+        case PML_SHL:
+            a = a << roperand;
+            break;
+        case PML_SHR:
+            a = a >> roperand;
+            break;
+        default:
+            assert(0);  /* XXX should be checking */
+            break;
+    }
+}
 static void pml_mov(u_int8_t *p) {
     u_int8_t dsb = ctx->prog[pc+1];
     u_int8_t src = PML_MOV_SRC(dsb), dst = PML_MOV_DST(dsb);
-    if(src == dst || src > PML_MOV_MAX || dst > PML_MOV_MAX) {
+    if(src == dst || src > PML_MOV_MAX || dst > PML_MOV_DST_MAX) {
         return;
     }
     u_int32_t n = EXTRACT4(&ctx->prog[pc+2]);
     if(ctx->prog[pc] == PML_MOVW) {
         u_int32_t srcval;
         switch(src) {
-            case PML_MOV_ADDR_A: srcval = a; break;
-            case PML_MOV_ADDR_X: srcval = x; break;
-            case PML_MOV_ADDR_Y: srcval = y; break;
+            case PML_MOV_ADDR_A: 
+                srcval = a; 
+                break;
+            case PML_MOV_ADDR_X: 
+                srcval = x; 
+                break;
+            case PML_MOV_ADDR_Y: 
+                srcval = y; 
+                break;
+            case PML_MOV_ADDR_N: 
+                srcval = n; 
+                break;
+            case PML_MOV_ADDR_COMP_A: 
+                srcval = ~(a); 
+                break;
+            case PML_MOV_ADDR_NEG_A: {
+                    int32_t nega = (int32_t)a;  /* intentional cast */
+                    nega = -nega;
+                    srcval = (u_int32_t)nega;   /* intentional cast */
+                }
+                break;
             case PML_MOV_ADDR_M_N: 
                 if(CHECK_MLEN(n, 4) == 0) {
                     return;
                 }
-                srcval = (ctx->m[n] << 24)
-                         | (ctx->m[n+1] << 16)
-                         | (ctx->m[n+2] << 8)
-                         | (ctx->m[n+3]);
+                srcval = EXTRACT4(&ctx->m[n]);
                 break;
             case PML_MOV_ADDR_P_N:
                 if(CHECK_PLEN(n, 4) == 0) {
                     return;
                 }
-                srcval = (p[n] << 24)
-                         | (p[n+1] << 16)
-                         | (p[n+2] << 8)
-                         | (p[n+3]);
+                srcval = EXTRACT4(&p[n]);
                 break;
             case PML_MOV_ADDR_M_X_N: {
-                u_int32_t i = n+x;   /* wraparound OK here */
-                if(CHECK_MLEN(i, 4) == 0) {
-                    return;
-                }
-                srcval = (ctx->m[i] << 24)
-                         | (ctx->m[i+1] << 16)
-                         | (ctx->m[i+2] << 8)
-                         | (ctx->m[i+3]);
+                    u_int32_t i = n+x;   /* wraparound OK here */
+                    if(CHECK_MLEN(i, 4) == 0) {
+                        return;
+                    }
+                    srcval = EXTRACT4(&ctx->m[i]);
                 }
                 break;
+            case PML_MOV_ADDR_P_X_N: {
+                    u_int32_t i = n+x;  /* wraparound OK here */
+                    if(CHECK_PLEN(i, 4) == 0) {
+                        return;
+                    }
+                    srcval = EXTRACT4(&p[i]);
+                }
+                break;
+            case PML_MOV_ADDR_IP4HDR_P:
+                if(CHECK_PLEN(x, 1) == 0) {
+                    return;
+                }
+                srcval = 4 * (p[x] & 0xf);
+                break;
+            case PML_MOV_ADDR_IP4HDR_M:
+                if(CHECK_MLEN(x, 1) == 0) {
+                    return;
+                }
+                srcval = 4 * (ctx->m[x] & 0xf);
+                break;
+            default:
+                assert(0);  // XXX rm
+                break;
         }
-
+        switch(dst) {
+            case PML_MOV_ADDR_A: 
+                a = srcval;
+                break;
+            case PML_MOV_ADDR_X:
+                x = srcval;
+                break;
+            case PML_MOV_ADDR_Y:
+                y = srcval;
+                break;
+            case PML_MOV_ADDR_M_N:
+                if(CHECK_MLEN(n, 4) == 0) {
+                    return;
+                }
+                ctx->m[n] = ((srcval >> 24) & 0xff);
+                ctx->m[n+1] = ((srcval >> 16) & 0xff);
+                ctx->m[n+2] = ((srcval >> 8) & 0xff);
+                ctx->m[n+3] = (srcval & 0xff);
+                break;
+            case PML_MOV_ADDR_P_N:
+                if(CHECK_PLEN(n, 4) == 0) {
+                    return;
+                }
+                p[n] = ((srcval >> 24) & 0xff);
+                p[n+1] = ((srcval >> 16) & 0xff);
+                p[n+2] = ((srcval >> 8) & 0xff);
+                p[n+3] = (srcval & 0xff);
+                break;
+            case PML_MOV_ADDR_M_X_N: {
+                    u_int32_t i = n+x;   /* wraparound OK here */
+                    if(CHECK_MLEN(i, 4) == 0) {
+                        return;
+                    }
+                    ctx->m[i] = ((srcval >> 24) & 0xff);
+                    ctx->m[i+1] = ((srcval >> 16) & 0xff);
+                    ctx->m[i+2] = ((srcval >> 8) & 0xff);
+                    ctx->m[i+3] = (srcval & 0xff);
+                }
+                break;
+            case PML_MOV_ADDR_P_X_N: {
+                    u_int32_t i = n+x;  /* wraparound OK here */
+                    if(CHECK_PLEN(i, 4) == 0) {
+                        return;
+                    }
+                    p[i] = ((srcval >> 24) & 0xff);
+                    p[i+1] = ((srcval >> 16) & 0xff);
+                    p[i+2] = ((srcval >> 8) & 0xff);
+                    p[i+3] = (srcval & 0xff);
+                }
+                break;
+            default:
+                assert(0);  // XXX rm
+                break;
+        }
+    } else {
+        assert(0);  // XXX shouldn't happen
     }
 }
+
+#ifdef DEBUG
+void pmlvm_debug(void) {
+    if(ctx) {
+        DLOG("p_d: mlen 0x%x  proglen 0x%x  pc 0x%x  a %08x  x %08x  y %08x", ctx->mlen, ctx->proglen, pc, a, x, y);
+    } else {
+        DLOG("p_d: no ctx");
+    }
+}
+#endif
 
 /* check_crc32: returns 1 iff len > 0 and the area of size len bytes starting at buf
  * contains data with a crc32 matching crccheck.  returns 0 otherwise.
@@ -145,6 +292,7 @@ bool pmlvm_process(struct pml_packet_info *pinfo) {
     curppi = pinfo;
     processflag = 1;
     if(ctx == NULL || ctx->prog == NULL || ctx->proglen < 6) {
+        DLOG("program too short");
         return processflag;
     }
     u_int8_t *p = pml_md_getpbuf(pinfo);
@@ -213,7 +361,28 @@ bool pmlvm_process(struct pml_packet_info *pinfo) {
             case PML_MOVH:
                 pml_mov(p);
                 break;
+            case PML_ADD:
+            case PML_SUB:
+            case PML_MUL:
+            case PML_DIV:
+            case PML_AND:
+            case PML_OR:
+            case PML_XOR:
+            case PML_SHL:
+            case PML_SHR:
+                if(ctx->prog[pc+1] > 2) {
+                    DLOG("invalid math source specifier");
+                    stopflag = 1;
+                    break;
+                }
+                pml_math(opcode);
+                break;
+            default:
+                assert(0);  // XXX nothing
+                stopflag = 1;
+                break;
         }
+        pc += 6;
     }
 
     return processflag;

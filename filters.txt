@@ -78,8 +78,8 @@ MOV[BWH] dst src n
         7:   n       <- immediate            (src)
         8:   ~A      <- register             (src)
         9:   -A      <- register             (src)
-        10:  4*(P[n]&0xf)  <- ipv4 hdr len   (src)
-        11:  4*(M[n]&0xf)  <- ipv4 hdr len   (src)
+        10:  4*(P[X]&0xf)  <- ipv4 hdr len   (src)
+        11:  4*(M[X]&0xf)  <- ipv4 hdr len   (src)
 
 MOVS dst type: move special into dst, zero-extending 
     opcodes:
@@ -96,7 +96,7 @@ MOVS dst type: move special into dst, zero-extending
         3:   TLProto    <- top-level protocol type (XXX) 
         4:   IPhdroff   <- P byte offset of start of ip header
         5:   ETHhdroff  <- P byte offset of start of ethernet header
-        6:   TCPhdroff  <- P byte offset of start of tcp header
+        6:   TLPhdroff  <- P byte offset of start of ipv4 transport protocol header
         7:   cur_time   <- current time in seconds
     destination addressing modes:
         0:   A       <- register             (dst)
@@ -123,6 +123,7 @@ MUL [n|X|Y]: A <- A * src
     0x22 0x02 .. .. .. ..:   A <- A * Y
 
 DIV [n|X|Y]: A <- A / src
+    (division by zero results in 0)
     0x23 0x00 AA BB CC DD:   A <- A / 0xAABBCCDD
     0x23 0x01 .. .. .. ..:   A <- A / X
     0x23 0x02 .. .. .. ..:   A <- A / Y
