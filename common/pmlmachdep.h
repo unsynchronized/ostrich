@@ -44,4 +44,7 @@ void pml_md_memmove(void *dest, const void *src, u_int32_t n);
  */
 bool pml_md_save_program(struct pmlvm_context *ctx, u_int8_t *newprog, u_int32_t len);
 
+/* pml_md_currenttime: XXX clearer description */
+u_int32_t pml_md_currenttime(void);
+
 #endif /* PML_MACHDEP */

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <time.h>
 
 u_int8_t *pml_md_getpbuf(struct pml_packet_info *ppi) {
     return ppi->pkt;
@@ -63,4 +64,8 @@ bool pml_md_save_program(struct pmlvm_context *ctx, u_int8_t *newprog, u_int32_t
 }
 void pml_md_memmove(void *dest, const void *src, u_int32_t n) {
     memmove(dest, src, n);
+}
+
+u_int32_t pml_md_currenttime(void) {
+    return time(NULL);
 }

@@ -23,7 +23,7 @@ typedef struct pml_packet_info {
     u_int32_t pktlen;
     u_int32_t iphdroff;
     u_int32_t ethhdroff;
-    u_int32_t tcphdroff;
+    u_int32_t ip4tlhdroff;
     u_int8_t tlproto;
 
     struct {
@@ -135,6 +135,10 @@ bool pmlvm_process(struct pml_packet_info *pinfo);
 
 
 /* MOVS */
+#define PML_MOVS_TYPE(x) ((x) & 0xf)
+#define PML_MOVS_DST(x) (((x) >> 4) & 0xf)
+#define PML_MOVS_TDB(type, dst) (((type) & 0xf) | (((dst) & 0xf) << 4))
+
 #define PML_MOVS_P_LEN          0
 #define PML_MOVS_M_LEN          1
 #define PML_MOVS_P_INITIALLEN   2
@@ -143,6 +147,7 @@ bool pmlvm_process(struct pml_packet_info *pinfo);
 #define PML_MOVS_ETH_HDROFF     5
 #define PML_MOVS_IP4TL_HDROFF   6
 #define PML_MOVS_CUR_TIME       7
+#define PML_MOVS_TYPE_MAX       7 /* don't forget to update */
 
 #define PML_MOVS_ADDR_A          0
 #define PML_MOVS_ADDR_X          1
@@ -151,6 +156,7 @@ bool pmlvm_process(struct pml_packet_info *pinfo);
 #define PML_MOVS_ADDR_P_N        4
 #define PML_MOVS_ADDR_M_X_N      5
 #define PML_MOVS_ADDR_P_X_N      6
+#define PML_MOVS_DST_MAX         6 /* don't forget to update */
 
 /* arithmetic/logical operations */
 #define PML_MATH_N 0

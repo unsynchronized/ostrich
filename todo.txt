@@ -3,6 +3,7 @@
 - exec?
 - checksum
 - pml_copy
+- test movs header offsets
 - setflag
 - divert
 - insert 

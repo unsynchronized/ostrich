@@ -517,6 +517,7 @@ bool check_crc32(u_int8_t *buf, u_int32_t len, u_int32_t crccheck) {
  */
 bool pmlvm_process(struct pml_packet_info *pinfo) {
     curppi = pinfo;
+    const u_int32_t initialplen = pinfo->pktlen;
     processflag = 1;
     if(ctx == NULL || ctx->prog == NULL || ctx->proglen < 6) {
         DLOG("program too short");
@@ -587,6 +588,110 @@ bool pmlvm_process(struct pml_packet_info *pinfo) {
             case PML_MOVW:
             case PML_MOVH:
                 pml_mov(p);
+                break;
+            case PML_MOVS: {
+                    const u_int8_t tdb = ctx->prog[pc+1];
+                    const int32_t n = (int32_t) EXTRACT4(&ctx->prog[pc+2]);
+                    u_int8_t type = PML_MOVS_TYPE(tdb), dst = PML_MOVS_DST(tdb);
+                    u_int32_t srcval = 0;
+                    if(type > PML_MOVS_TYPE_MAX) {
+                        DLOG("invalid MOVS type: 0x%x", type);
+                        stopflag = 1;
+                        break;
+                    }
+                    if(dst > PML_MOVS_DST_MAX) {
+                        DLOG("invalid MOVS destination type: 0x%x", dst);
+                        stopflag = 1;
+                        break;
+                    }
+                    switch(type) {
+                        case PML_MOVS_P_LEN:
+                            srcval = pinfo->pktlen;
+                            break;
+                        case PML_MOVS_M_LEN:
+                            srcval = ctx->mlen;
+                            break;
+                        case PML_MOVS_P_INITIALLEN:
+                            srcval = initialplen;
+                            break;
+                        case PML_MOVS_TL_PROTO:
+                            srcval = pinfo->tlproto;
+                            break;
+                        case PML_MOVS_IP_HDROFF:
+                            srcval = pinfo->iphdroff;
+                            break;
+                        case PML_MOVS_ETH_HDROFF:
+                            srcval = pinfo->ethhdroff;
+                            break;
+                        case PML_MOVS_IP4TL_HDROFF:
+                            srcval = pinfo->ip4tlhdroff;
+                            break;
+                        case PML_MOVS_CUR_TIME:
+                            srcval = pml_md_currenttime();
+                            break;
+                        default:
+                            assert(0);  // XXX: shouldn't get here
+                            break;
+                    }
+                    switch(dst) {
+                        case PML_MOVS_ADDR_A: 
+                            a = srcval;
+                            break;
+                        case PML_MOVS_ADDR_X:
+                            x = srcval;
+                            break;
+                        case PML_MOVS_ADDR_Y:
+                            y = srcval;
+                            break;
+                        case PML_MOVS_ADDR_M_N:
+                            if(CHECK_MLEN(n, 4) == 0) {
+                                stopflag = 1;
+                                break;
+                            }
+                            ctx->m[n] = ((srcval >> 24) & 0xff);
+                            ctx->m[n+1] = ((srcval >> 16) & 0xff);
+                            ctx->m[n+2] = ((srcval >> 8) & 0xff);
+                            ctx->m[n+3] = (srcval & 0xff);
+                            break;
+                        case PML_MOVS_ADDR_P_N:
+                            if(CHECK_PLEN(n, 4) == 0) {
+                                stopflag = 1;
+                                break;
+                            }
+                            p[n] = ((srcval >> 24) & 0xff);
+                            p[n+1] = ((srcval >> 16) & 0xff);
+                            p[n+2] = ((srcval >> 8) & 0xff);
+                            p[n+3] = (srcval & 0xff);
+                            break;
+                        case PML_MOVS_ADDR_M_X_N: {
+                                u_int32_t i = n+x;   /* wraparound OK here */
+                                if(CHECK_MLEN(i, 4) == 0) {
+                                    stopflag = 1;
+                                    break;
+                                }
+                                ctx->m[i] = ((srcval >> 24) & 0xff);
+                                ctx->m[i+1] = ((srcval >> 16) & 0xff);
+                                ctx->m[i+2] = ((srcval >> 8) & 0xff);
+                                ctx->m[i+3] = (srcval & 0xff);
+                            }
+                            break;
+                        case PML_MOVS_ADDR_P_X_N: {
+                                u_int32_t i = n+x;  /* wraparound OK here */
+                                if(CHECK_PLEN(i, 4) == 0) {
+                                    stopflag = 1;
+                                    break;
+                                }
+                                p[i] = ((srcval >> 24) & 0xff);
+                                p[i+1] = ((srcval >> 16) & 0xff);
+                                p[i+2] = ((srcval >> 8) & 0xff);
+                                p[i+3] = (srcval & 0xff);
+                            }
+                            break;
+                        default:
+                            assert(0);  // XXX rm
+                            break;
+                    }
+                }
                 break;
             case PML_ADD:
             case PML_SUB:
