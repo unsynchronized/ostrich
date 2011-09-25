@@ -15,6 +15,7 @@ static void pml_mov(u_int8_t *p);
                     | (((u_int8_t)((x)[1])) << 16) \
                     | (((u_int8_t)((x)[2])) << 8) \
                     | (((u_int8_t)((x)[3]))))
+#define EXTRACT2(x) ((((u_int8_t)((x)[0])) << 8) | (((u_int8_t)((x)[1]))))
 
 /* initialize pmlvm -- should be called only once.  will alloc the context, load all
  * necessary data, and get everything ready to process packets
@@ -259,6 +260,232 @@ static void pml_mov(u_int8_t *p) {
                 assert(0);  // XXX rm
                 break;
         }
+    } else if(ctx->prog[pc] == PML_MOVH) {
+        u_int16_t srcval;
+        switch(src) {
+            case PML_MOV_ADDR_A: 
+                srcval = (a & 0xffff); 
+                break;
+            case PML_MOV_ADDR_X: 
+                srcval = (x & 0xffff);
+                break;
+            case PML_MOV_ADDR_Y: 
+                srcval = (y & 0xffff); 
+                break;
+            case PML_MOV_ADDR_N: 
+                srcval = (n & 0xffff); 
+                break;
+            case PML_MOV_ADDR_COMP_A: 
+                srcval = ~((a & 0xffff)); 
+                break;
+            case PML_MOV_ADDR_NEG_A: {
+                    srcval = (a & 0xffff);
+                    int16_t nega = (int16_t)srcval;  /* intentional cast */
+                    nega = -nega;
+                    srcval = (u_int16_t)nega;   /* intentional cast */
+                }
+                break;
+            case PML_MOV_ADDR_M_N: 
+                if(CHECK_MLEN(n, 2) == 0) {
+                    return;
+                }
+                srcval = EXTRACT2(&ctx->m[n]);
+                break;
+            case PML_MOV_ADDR_P_N:
+                if(CHECK_PLEN(n, 2) == 0) {
+                    return;
+                }
+                srcval = EXTRACT2(&p[n]);
+                break;
+            case PML_MOV_ADDR_M_X_N: {
+                    u_int32_t i = n+x;   /* wraparound OK here */
+                    if(CHECK_MLEN(i, 2) == 0) {
+                        return;
+                    }
+                    srcval = EXTRACT2(&ctx->m[i]);
+                }
+                break;
+            case PML_MOV_ADDR_P_X_N: {
+                    u_int32_t i = n+x;  /* wraparound OK here */
+                    if(CHECK_PLEN(i, 2) == 0) {
+                        return;
+                    }
+                    srcval = EXTRACT2(&p[i]);
+                }
+                break;
+            case PML_MOV_ADDR_IP4HDR_P:
+                if(CHECK_PLEN(x, 1) == 0) {
+                    return;
+                }
+                srcval = 4 * (p[x] & 0xf);
+                break;
+            case PML_MOV_ADDR_IP4HDR_M:
+                if(CHECK_MLEN(x, 1) == 0) {
+                    return;
+                }
+                srcval = 4 * (ctx->m[x] & 0xf);
+                break;
+            default:
+                assert(0);  // XXX rm
+                break;
+        }
+        switch(dst) {
+            case PML_MOV_ADDR_A: 
+                a = (a & 0xffff0000) | srcval;
+                break;
+            case PML_MOV_ADDR_X:
+                x = (x & 0xffff0000) | srcval;
+                break;
+            case PML_MOV_ADDR_Y:
+                y = (y & 0xffff0000) | srcval;
+                break;
+            case PML_MOV_ADDR_M_N:
+                if(CHECK_MLEN(n, 2) == 0) {
+                    return;
+                }
+                ctx->m[n] = ((srcval >> 8) & 0xff);
+                ctx->m[n+1] = (srcval & 0xff);
+                break;
+            case PML_MOV_ADDR_P_N:
+                if(CHECK_PLEN(n, 2) == 0) {
+                    return;
+                }
+                p[n] = ((srcval >> 8) & 0xff);
+                p[n+1] = (srcval & 0xff);
+                break;
+            case PML_MOV_ADDR_M_X_N: {
+                    u_int32_t i = n+x;   /* wraparound OK here */
+                    if(CHECK_MLEN(i, 2) == 0) {
+                        return;
+                    }
+                    ctx->m[i] = ((srcval >> 8) & 0xff);
+                    ctx->m[i+1] = (srcval & 0xff);
+                }
+                break;
+            case PML_MOV_ADDR_P_X_N: {
+                    u_int32_t i = n+x;  /* wraparound OK here */
+                    if(CHECK_PLEN(i, 2) == 0) {
+                        return;
+                    }
+                    p[i] = ((srcval >> 8) & 0xff);
+                    p[i+1] = (srcval & 0xff);
+                }
+                break;
+            default:
+                assert(0);  // XXX rm
+                break;
+        }
+    } else if(ctx->prog[pc] == PML_MOVB) {
+        u_int8_t srcval;
+        switch(src) {
+            case PML_MOV_ADDR_A: 
+                srcval = (a & 0xff); 
+                break;
+            case PML_MOV_ADDR_X: 
+                srcval = (x & 0xff);
+                break;
+            case PML_MOV_ADDR_Y: 
+                srcval = (y & 0xff); 
+                break;
+            case PML_MOV_ADDR_N: 
+                srcval = (n & 0xff); 
+                break;
+            case PML_MOV_ADDR_COMP_A: 
+                srcval = ~(a & 0xff); 
+                break;
+            case PML_MOV_ADDR_NEG_A: {
+                    srcval = (a & 0xff);
+                    int8_t nega = (int8_t)srcval;  /* intentional cast */
+                    nega = -nega;
+                    srcval = (u_int8_t)nega;   /* intentional cast */
+                }
+                break;
+            case PML_MOV_ADDR_M_N: 
+                if(CHECK_MLEN(n, 1) == 0) {
+                    return;
+                }
+                srcval = ctx->m[n];
+                break;
+            case PML_MOV_ADDR_P_N:
+                if(CHECK_PLEN(n, 1) == 0) {
+                    return;
+                }
+                srcval = p[n];
+                break;
+            case PML_MOV_ADDR_M_X_N: {
+                    u_int32_t i = n+x;   /* wraparound OK here */
+                    if(CHECK_MLEN(i, 1) == 0) {
+                        return;
+                    }
+                    srcval = ctx->m[i];
+                }
+                break;
+            case PML_MOV_ADDR_P_X_N: {
+                    u_int32_t i = n+x;  /* wraparound OK here */
+                    if(CHECK_PLEN(i, 1) == 0) {
+                        return;
+                    }
+                    srcval = p[i];
+                }
+                break;
+            case PML_MOV_ADDR_IP4HDR_P:
+                if(CHECK_PLEN(x, 1) == 0) {
+                    return;
+                }
+                srcval = 4 * (p[x] & 0xf);
+                break;
+            case PML_MOV_ADDR_IP4HDR_M:
+                if(CHECK_MLEN(x, 1) == 0) {
+                    return;
+                }
+                srcval = 4 * (ctx->m[x] & 0xf);
+                break;
+            default:
+                assert(0);  // XXX rm
+                break;
+        }
+        switch(dst) {
+            case PML_MOV_ADDR_A: 
+                a = (a & 0xffffff00) | srcval;
+                break;
+            case PML_MOV_ADDR_X:
+                x = (x & 0xffffff00) | srcval;
+                break;
+            case PML_MOV_ADDR_Y:
+                y = (y & 0xffffff00) | srcval;
+                break;
+            case PML_MOV_ADDR_M_N:
+                if(CHECK_MLEN(n, 1) == 0) {
+                    return;
+                }
+                ctx->m[n] = srcval;
+                break;
+            case PML_MOV_ADDR_P_N:
+                if(CHECK_PLEN(n, 1) == 0) {
+                    return;
+                }
+                p[n] = srcval;
+                break;
+            case PML_MOV_ADDR_M_X_N: {
+                    u_int32_t i = n+x;   /* wraparound OK here */
+                    if(CHECK_MLEN(i, 1) == 0) {
+                        return;
+                    }
+                    ctx->m[i] = srcval;
+                }
+                break;
+            case PML_MOV_ADDR_P_X_N: {
+                    u_int32_t i = n+x;  /* wraparound OK here */
+                    if(CHECK_PLEN(i, 1) == 0) {
+                        return;
+                    }
+                    p[i] = srcval;
+                }
+                break;
+            default:
+                assert(0);  // XXX rm
+                break;
+        }
     } else {
         assert(0);  // XXX shouldn't happen
     }
@@ -380,6 +607,81 @@ bool pmlvm_process(struct pml_packet_info *pinfo) {
             default:
                 assert(0);  // XXX nothing
                 stopflag = 1;
+                break;
+            case PML_JMP: {
+                    const u_int8_t type = ctx->prog[pc+1];
+                    const int32_t n = (int32_t) EXTRACT4(&ctx->prog[pc+2]);
+                    u_int32_t destpc;
+                    if(type == PML_JMP_OFF_N) {
+                        destpc = pc + n;        /* wraparound okay here */
+                    } else if(type == PML_JMP_OFF_A_N) {
+                        destpc = pc + a + n;    /* wraparound okay here */
+                    } else {
+                        DLOG("invalid JMP offset type");
+                        stopflag = 1;
+                        break;
+                    }
+                    if(destpc >= ctx->proglen || (destpc % 6) != 0) {
+                        DLOG("invalid JMP offset: 0x%x", destpc);
+                        stopflag = 1;
+                        break;
+                    }
+                    pc = destpc;
+                    continue;
+                }
+                break;
+            case PML_JGT:
+            case PML_JLT:
+            case PML_JGE:
+            case PML_JLE:
+            case PML_JEQ:
+            case PML_JSET: {
+                    const u_int8_t type = ctx->prog[pc+1];
+                    const int32_t n = (int32_t) EXTRACT4(&ctx->prog[pc+2]);
+                    u_int32_t roperand, destpc;
+                    if(type == PML_JCOND_0) {
+                        roperand = 0;
+                    } else if(type == PML_JCOND_X) {
+                        roperand = x;
+                    } else if(type == PML_JCOND_Y) {
+                        roperand = y;
+                    } else {
+                        DLOG("invalid conditional jump offset type");
+                        stopflag = 1;
+                        break;
+                    }
+                    destpc = pc + n;        /* wraparound okay here */
+                    if(destpc >= ctx->proglen || (destpc % 6) != 0) {
+                        DLOG("invalid conditional jump offset: 0x%x", destpc);
+                        stopflag = 1;
+                        break;
+                    }
+                    bool branch = 0;
+                    switch(opcode) {
+                        case PML_JGT:
+                            branch = (a > roperand) ? 1 : 0;
+                            break;
+                        case PML_JLT:
+                            branch = (a < roperand) ? 1 : 0;
+                            break;
+                        case PML_JGE:
+                            branch = (a >= roperand) ? 1 : 0;
+                            break;
+                        case PML_JLE:
+                            branch = (a <= roperand) ? 1 : 0;
+                            break;
+                        case PML_JEQ:
+                            branch = (a == roperand) ? 1 : 0;
+                            break;
+                        case PML_JSET: 
+                            branch = ((a & roperand) != 0) ? 1 : 0;
+                            break;
+                    }
+                    if(branch) {
+                        pc = destpc;
+                        continue;
+                    }
+                }
                 break;
         }
         pc += 6;

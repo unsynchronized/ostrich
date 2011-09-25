@@ -156,6 +156,7 @@ SHR [n|X|Y]: A <- A >> src
 
 JMP dst n       (n is 2s-complement signed)
     pc = pc + dst
+    dst must be greater than 0 and a multiple of the instruction length (6)
     destination types:
         n
         A+n

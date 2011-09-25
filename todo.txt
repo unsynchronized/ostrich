@@ -1,0 +1,12 @@
+- max instruction count
+- movs
+- exec?
+- checksum
+- pml_copy
+- setflag
+- divert
+- insert 
+- delete
+- find
+- test copy 
+- test newprog
