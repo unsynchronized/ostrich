@@ -1,13 +1,12 @@
-- max instruction count
-- movs
-- exec?
-- checksum
-- pml_copy
-- test movs header offsets
-- setflag
-- divert
 - insert 
 - delete
+- pml_copy
+- checksum
+- setflag
+- divert
 - find
+- max instruction count
+- exec?
+- test movs header offsets
 - test copy 
 - test newprog
