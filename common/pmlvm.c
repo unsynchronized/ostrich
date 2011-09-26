@@ -492,9 +492,15 @@ static void pml_mov(u_int8_t *p) {
 }
 
 #ifdef DEBUG
+void hexdump(char *const buf, unsigned long size);
+
 void pmlvm_debug(void) {
     if(ctx) {
         DLOG("p_d: mlen 0x%x  proglen 0x%x  pc 0x%x  a %08x  x %08x  y %08x", ctx->mlen, ctx->proglen, pc, a, x, y);
+        if(ctx->mlen > 0) {
+            DLOG("m:");
+            hexdump((char * const)ctx->m, ctx->mlen);
+        }
     } else {
         DLOG("p_d: no ctx");
     }
@@ -535,6 +541,7 @@ bool pmlvm_process(struct pml_packet_info *pinfo) {
     bool stopflag = 0;
 
     while(stopflag == 0 && pc < ctx->proglen) {
+        p = pml_md_getpbuf(pinfo);
         const u_int8_t opcode = ctx->prog[pc];
         switch(opcode) {
             case PML_EXIT:
@@ -709,10 +716,6 @@ bool pmlvm_process(struct pml_packet_info *pinfo) {
                 }
                 pml_math(opcode);
                 break;
-            default:
-                assert(0);  // XXX nothing
-                stopflag = 1;
-                break;
             case PML_JMP: {
                     const u_int8_t type = ctx->prog[pc+1];
                     const int32_t n = (int32_t) EXTRACT4(&ctx->prog[pc+2]);
@@ -787,6 +790,72 @@ bool pmlvm_process(struct pml_packet_info *pinfo) {
                         continue;
                     }
                 }
+                break;
+            case PML_INSERT: { 
+                    if(a == 0) {
+                        a = 1;
+                        break;
+                    }
+                    const u_int8_t type = ctx->prog[pc+1];
+                    if(type == PML_INSERT_M) {
+                        if(x > ctx->mlen) {
+                            DLOG("INSERT M offset in X is past the end of M");
+                            stopflag = 1;
+                            break;
+                        }
+                        a = pml_md_insert_m(a, x, ctx);
+                    } else if(type == PML_INSERT_P) {
+                        if(x > pinfo->pktlen) {
+                            DLOG("INSERT P offset in X is past the end of P");
+                            stopflag = 1;
+                            break;
+                        }
+                        a = pml_md_insert_p(a, x, pinfo);
+                    } else {
+                        DLOG("invalid INSERT type: 0x%x", type);
+                        stopflag = 1;
+                        break;
+                    }
+                }
+                break;
+            case PML_DELETE: {
+                    if(a == 0) {
+                        a = 1;
+                        break;
+                    }
+                    const u_int8_t type = ctx->prog[pc+1];
+                    if(type == PML_DELETE_M) {
+                        if(x >= ctx->mlen) {
+                            DLOG("DELETE M offset in X is past the end of M");
+                            stopflag = 1;
+                            break;
+                        }
+                        if((ctx->mlen - x) < a) {
+                            DLOG("DELETE M length extends past the end of M");
+                            stopflag = 1;
+                            break;
+                        }
+                        a = pml_md_delete_m(a, x, ctx);
+                    } else if(type == PML_DELETE_P) {
+                        if(x >= pinfo->pktlen) {
+                            DLOG("DELETE P offset in X is past the end of P");
+                            stopflag = 1;
+                            break;
+                        }
+                        if((pinfo->pktlen - x) < a) {
+                            DLOG("DELETE M length extends past the end of M");
+                        }
+                        a = pml_md_delete_p(a, x, pinfo);
+                    } else {
+                        DLOG("invalid DELETE type: 0x%x", type);
+                        stopflag = 1;
+                        break;
+                    }
+                }
+                break;
+            default:
+                assert(0);  // XXX nothing
+                stopflag = 1;
                 break;
         }
         pc += 6;

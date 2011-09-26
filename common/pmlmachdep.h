@@ -47,4 +47,17 @@ bool pml_md_save_program(struct pmlvm_context *ctx, u_int8_t *newprog, u_int32_t
 /* pml_md_currenttime: XXX clearer description */
 u_int32_t pml_md_currenttime(void);
 
+/* XXX doc */
+bool pml_md_insert_m(u_int32_t nbytes, u_int32_t startoff, struct pmlvm_context *context);
+
+/* XXX doc */
+bool pml_md_insert_p(u_int32_t nbytes, u_int32_t startoff, struct pml_packet_info *pinfo);
+
+/* XXX doc */
+bool pml_md_delete_m(u_int32_t nbytes, u_int32_t startoff, struct pmlvm_context *context);
+
+/* XXX doc */
+bool pml_md_delete_p(u_int32_t nbytes, u_int32_t startoff, struct pml_packet_info *pinfo);
+
+
 #endif /* PML_MACHDEP */

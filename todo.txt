@@ -1,10 +1,11 @@
-- insert 
-- delete
+- check to make sure result codes are always being set
 - pml_copy
 - checksum
 - setflag
 - divert
+- fix insert/delete on P in test/pmlmachdep; can't realloc/malloc, they're stack-allocated
 - find
+- add header offsets
 - max instruction count
 - exec?
 - test movs header offsets

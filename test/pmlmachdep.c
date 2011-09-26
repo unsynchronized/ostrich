@@ -2,6 +2,7 @@
 #include <pmltypes.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <string.h>
 #include <stdarg.h>
 #include <time.h>
@@ -32,7 +33,17 @@ bool pml_md_retrieve(struct pmlvm_context *ctx) {
     static u_int8_t XXXprog[] = {
         PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_P_N, PML_MOV_ADDR_A), 0x00, 0x00, 0x00, 0x60,
         PML_ADD, PML_MATH_N, 0x1, 0x1, 0x1, 0x1,
-        PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_A, PML_MOV_ADDR_P_N), 0x00, 0x00, 0x00, 0x60,
+
+        PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_A), 0x00, 0x00, 0x00, 0x10,
+        PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_X), 0x00, 0x00, 0x00, 0x0,
+        PML_INSERT, PML_INSERT_M, 0x0, 0x0, 0x0, 0x0, 
+
+        PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_X), 0x11, 0x22, 0x33, 0x44,
+        PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_X, PML_MOV_ADDR_M_N), 0x0, 0x0, 0x0, 0x6,
+
+        PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_A), 0x00, 0x00, 0x00, 0x8,
+        PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_X), 0x00, 0x00, 0x00, 0x0,
+        PML_DELETE, PML_INSERT_M, 0x0, 0x0, 0x0, 0x0, 
     };
     ctx->mlen = 0;
     ctx->m = NULL;
@@ -69,3 +80,92 @@ void pml_md_memmove(void *dest, const void *src, u_int32_t n) {
 u_int32_t pml_md_currenttime(void) {
     return time(NULL);
 }
+
+/* beforehand: nbytes is checked, startoff must be <= the length */
+bool pml_md_insert_m(u_int32_t nbytes, u_int32_t startoff, struct pmlvm_context *context) {
+    const u_int32_t newsz = context->mlen + nbytes;
+    printf("newsz: mlen 0x%x  nbytes 0x%x  0x%x\n", context->mlen, nbytes, newsz); /* XXX */
+    sleep(1); /* XXX */
+    u_int8_t *newm;
+    if(context->mlen > 0) {
+        newm = realloc(context->m, newsz);
+        if(newm == NULL) {
+            return 0;
+        }
+        if(startoff < context->mlen) {
+            memmove(&newm[startoff+nbytes], &newm[startoff], (context->mlen)-startoff);
+        }
+        memset(&newm[startoff], 0, nbytes);
+    } else {
+        newm = calloc(1, newsz);
+        if(newm == NULL) {
+            return 0;
+        }
+    }
+    context->m = newm;
+    context->mlen = newsz;
+    return 1;
+}
+
+bool pml_md_delete_m(u_int32_t nbytes, u_int32_t startoff, struct pmlvm_context *context) {
+    if(context->mlen == 0) {
+        DLOG("tried to DELETE from M when M was empty");
+        return 0;
+    }
+    const u_int32_t newsz = context->mlen - nbytes;
+    if(newsz == 0) {
+        free(context->m);
+        context->m = NULL;
+        context->mlen = 0;
+        return 1;
+    }
+    memmove(&context->m[startoff], &context->m[startoff+nbytes], nbytes);
+    context->mlen = newsz;
+    return 1;
+}
+
+/* XXX doc */
+bool pml_md_insert_p(u_int32_t nbytes, u_int32_t startoff, struct pml_packet_info *pinfo) {
+    const u_int32_t newsz = pinfo->pktlen + nbytes;
+    u_int8_t *newp;
+    if(pinfo->pktlen > 0) {
+        newp = realloc(pinfo->pkt, newsz);
+        if(newp == NULL) {
+            return 0;
+        }
+        if(startoff < pinfo->pktlen) {
+            memmove(&newp[startoff+nbytes], &newp[startoff], (pinfo->pktlen)-startoff);
+        }
+        memset(&newp[startoff], 0, nbytes);
+    } else {
+        newp = calloc(1, newsz);
+        if(newp == NULL) {
+            return 0;
+        }
+    }
+    pinfo->pkt = newp;
+    pinfo->pktlen = newsz;
+    return 1;
+}
+
+/* XXX doc */
+bool pml_md_delete_p(u_int32_t nbytes, u_int32_t startoff, struct pml_packet_info *pinfo) {
+    if(pinfo->pktlen == 0) {
+        DLOG("tried to DELETE from P when P was empty");
+        return 0;
+    }
+    const u_int32_t newsz = pinfo->pktlen - nbytes;
+    if(newsz == 0) {
+        free(pinfo->pkt);
+        pinfo->pkt = NULL;
+        pinfo->pktlen = 0;
+        return 1;
+    }
+    u_int8_t *p = pinfo->pkt;
+    memmove(&p[startoff], &p[startoff+nbytes], nbytes);
+    pinfo->pktlen = newsz;
+    return 1;
+}
+
+
+

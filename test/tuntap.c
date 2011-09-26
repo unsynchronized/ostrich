@@ -187,7 +187,7 @@ int main(int argc, char *argv[]) {
         }
         bool pret = pmlvm_process(&ppi);
         pmlvm_debug();
-        if(pret == 0) {
+        if(pret == 0 || ppi.pktlen == 0) {
             continue;
         }
         memmove(&allbuf[4], ppi.pkt, ppi.pktlen);
