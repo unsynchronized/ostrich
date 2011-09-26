@@ -651,6 +651,9 @@ bool pmlvm_process(struct pml_packet_info *pinfo) {
                         case PML_MOVS_CUR_TIME:
                             srcval = pml_md_currenttime();
                             break;
+                        case PML_MOVS_PC:
+                            srcval = pc;
+                            break;
                         default:
                             assert(0);  // XXX: shouldn't get here
                             break;
@@ -749,6 +752,7 @@ bool pmlvm_process(struct pml_packet_info *pinfo) {
                         stopflag = 1;
                         break;
                     }
+                    y = pc;
                     pc = destpc;
                     continue;
                 }
@@ -801,6 +805,7 @@ bool pmlvm_process(struct pml_packet_info *pinfo) {
                             break;
                     }
                     if(branch) {
+                        y = pc;
                         pc = destpc;
                         continue;
                     }

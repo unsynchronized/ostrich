@@ -98,6 +98,7 @@ MOVS dst type: move special into dst, zero-extending
         5:   ETHhdroff  <- P byte offset of start of ethernet header
         6:   TLPhdroff  <- P byte offset of start of ipv4 transport protocol header
         7:   cur_time   <- current time in seconds
+        8:   PC         <- PC of this instruction
     destination addressing modes:
         0:   A       <- register             (dst)
         1:   X       <- register             (dst)
@@ -155,7 +156,7 @@ SHR [n|X|Y]: A <- A >> src
 
 
 JMP dst n       (n is 2s-complement signed)
-    pc = pc + dst
+    Y = pc; pc = pc + dst
     dst must be greater than 0 and a multiple of the instruction length (6)
     destination types:
         n
@@ -167,6 +168,7 @@ JMP dst n       (n is 2s-complement signed)
 JGT op truedst              (truedst is 2s-complement signed)
     operand types: [0|X|Y]
     if(A > op) {
+        Y = pc;
         pc = pc + truedst
     }   
     opcodes:
@@ -177,6 +179,7 @@ JGT op truedst              (truedst is 2s-complement signed)
 JLT op truedst              (truedst is 2s-complement signed)
     operand types: [0|X|Y]
     if(A < op) {
+        Y = pc;
         pc = pc + truedst
     }   
     opcodes:
@@ -187,6 +190,7 @@ JLT op truedst              (truedst is 2s-complement signed)
 JGE op truedst              (truedst is 2s-complement signed)
     operand types: [n|X|Y]
     if(A >= n) {
+        Y = pc;
         pc = pc + truedst
     }   
     opcodes:
@@ -197,6 +201,7 @@ JGE op truedst              (truedst is 2s-complement signed)
 JLE op truedst              (truedst is 2s-complement signed)
     operand types: [0|X|Y]
     if(A <= op) {
+        Y = pc;
         pc = pc + truedst
     }   
     opcodes:
@@ -207,6 +212,7 @@ JLE op truedst              (truedst is 2s-complement signed)
 JEQ op truedst              (truedst is 2s-complement signed)
     operand types: [0|X|Y]
     if(A == op) {
+        Y = pc;
         pc = pc + truedst
     }   
     opcodes:
@@ -217,6 +223,7 @@ JEQ op truedst              (truedst is 2s-complement signed)
 JSET op truedst             (truedst is 2s-complement signed)
     operand types: [0|X|Y]
     if((A & op) != 0) {
+        Y = pc;
         pc = pc + truedst
     }   
     opcodes:

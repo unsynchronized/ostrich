@@ -147,7 +147,8 @@ bool pmlvm_process(struct pml_packet_info *pinfo);
 #define PML_MOVS_ETH_HDROFF     5
 #define PML_MOVS_IP4TL_HDROFF   6
 #define PML_MOVS_CUR_TIME       7
-#define PML_MOVS_TYPE_MAX       7 /* don't forget to update */
+#define PML_MOVS_PC             8
+#define PML_MOVS_TYPE_MAX       8 /* don't forget to update */
 
 #define PML_MOVS_ADDR_A          0
 #define PML_MOVS_ADDR_X          1

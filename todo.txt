@@ -1,3 +1,4 @@
+- command channel: secret only, UDP/ICMP
 - check to make sure result codes are always being set
 - checksum
 - divert
