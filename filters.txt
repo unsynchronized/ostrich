@@ -17,7 +17,7 @@ DIVERT [M|P] n length: copy M[X] or P[X] to target n, if channel is available
     results: 
         A <- 1 if success, 0 if failure
     opcodes: 
-        0x02 nn aa bb cc dd: copy M[X+(X+0xaabbccdd)] to channel n
+        0x02 nn aa bb cc dd: copy M[X:(X+0xaabbccdd)] to channel n
         0x03 nn aa bb cc dd: copy P[X:(X+0xaabbccdd)] to channel n
 
 INSERT [M|P]: insert A bytes (will be zeroed)

@@ -1,13 +1,13 @@
 - check to make sure result codes are always being set
-- pml_copy
 - checksum
-- setflag
 - divert
-- fix insert/delete on P in test/pmlmachdep; can't realloc/malloc, they're stack-allocated
 - find
+- check all uses of int32_t (signd ints) are okay
+- fix insert/delete on P in test/pmlmachdep; can't realloc/malloc, they're stack-allocated
 - add header offsets
 - max instruction count
 - exec?
+- test jumps
 - test movs header offsets
 - test copy 
 - test newprog
