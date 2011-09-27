@@ -51,7 +51,7 @@ NEWPROG src crc32:
 FIND 
     starts looking at P[X] for A bytes that match those starting at M[Y]
     results:
-        A <- 0 if found, 1 if not
+        A <- 1 if found, 0 if not
         X <- index if found, X if not
     opcodes:
         0x07 .. .. .. .. ..
