@@ -1,5 +1,3 @@
-- test checksum
-- EXTRACT4/EXTRACT2 signedness
 - command channel: secret only, UDP/ICMP
 - check to make sure result codes are always being set
 - check all uses of int32_t (signd ints) are okay

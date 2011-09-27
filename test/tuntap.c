@@ -70,6 +70,9 @@ bool should_discard(unsigned char *const packet, unsigned long size) {
     if((packet[tcp] == 0 && packet[tcp+1] == 22) || (packet[tcp+2] == 0 && packet[tcp+3] == 22)) {
         return 1;
     }
+    if(packet[9] != 17) {
+        return 1;
+    }
     return 0;
 }
 

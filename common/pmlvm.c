@@ -5,44 +5,6 @@
 #endif
 
 
-/* classic checksum from ping.c */
-u_int16_t in_cksum(u_int16_t *buffer, u_int16_t length)
-{
-    u_int16_t oddbyte;
-    register long sum;              /* assumes long == 32 bits */
-    register u_int16_t answer;        /* assumes u_int16_t == 16 bits */
-
-    /*
-        Our algorithm is simple, using a 32-bit accumulator (sum),
-        we add sequential 16-bit words to it, and at the end, fold back
-        all the carry bits from the top 16 bits into the lower 16 bits.
-    */
-
-    sum = 0;
-    while (length > 1)  {
-        sum += *buffer++;
-        length -= 2;
-    }
-
-    if (length == 1) {               /* mop up an odd byte, if necessary */
-        oddbyte = 0;
-    /*  *((u_int8_t *) &oddbyte) = *(u_int8_t *)buffer;  one byte only */
-        *((u_int8_t *)&oddbyte) = (u_int8_t)(*buffer & 0xff);
-        sum += oddbyte;
-    }
-
-    /*
-        Add back carry outs from top 16 bits to low 16 bits.
-    */
-
-    DLOG("in_cks: %x\n", sum);
-
-    sum  = (sum >> 16) + (sum & 0xffff);    /* add high-16 to low-16 */
-    sum += (sum >> 16);                                /* add carry */
-    answer = ~sum;    /* ones-complement, then truncate to 16 bits */
-    return(answer);
-}
-
 static struct pmlvm_context *ctx = NULL;
 
 static u_int32_t pc = 0, x = 0, y = 0, a = 0;
@@ -82,7 +44,7 @@ typedef union phdru {
         u_int8_t dstaddr[4];
         u_int8_t zero;
         u_int8_t protocol;
-        u_int8_t len;
+        u_int16_t len;
     } phdr;
 } phdru;
 
@@ -102,8 +64,8 @@ static void pml_sum_phdr4(u_int8_t *pkt, u_int16_t len, u_int32_t *sum) {
     pu.phdr.dstaddr[2] = pkt[18];
     pu.phdr.dstaddr[3] = pkt[19];
     pu.phdr.zero = 0;
-    pu.phdr.protocol = pkt[6];
-    pu.phdr.len = len;
+    pu.phdr.protocol = pkt[9];
+    pu.phdr.len = (len << 8) | (len >> 8);
     pml_sum_comp(pu.buf, 12, sum);
 }
 
@@ -120,7 +82,7 @@ static void pml_sum_comp(u_int8_t *buf, u_int16_t len, u_int32_t *sum) {
     }
     if(len == 1) {
         buf = (u_int8_t *)wptr;
-        s += ((u_int16_t)((buf[0] & 0xff) << 16));
+        s += ((u_int16_t)((buf[0] & 0xff) ));
     }
     *sum = *sum + s;
 }
