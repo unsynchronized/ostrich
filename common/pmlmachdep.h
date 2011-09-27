@@ -36,6 +36,8 @@ void pml_md_debug(const char *fmt, ...);
 /* pml_md_memmove: copies n bytes from src to dest; src and dest may be overlapping */
 void pml_md_memmove(void *dest, const void *src, u_int32_t n);
 
+/* pml_md_memset: fills sz bytes in dest with byte b */
+void pml_md_memset(void *dest, u_int8_t b, u_int32_t sz);
 
 /* pml_md_save_program: replace the currently-existing program (if one exists) with 
  * the specified data.  if successful, returns 1 and replaces the program in the

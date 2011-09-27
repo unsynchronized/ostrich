@@ -31,19 +31,37 @@ struct pmlvm_context *pml_md_alloc_context(void) {
 
 bool pml_md_retrieve(struct pmlvm_context *ctx) {
     static u_int8_t XXXprog[] = {
-        PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_P_N, PML_MOV_ADDR_A), 0x00, 0x00, 0x00, 0x60,
-        PML_ADD, PML_MATH_N, 0x1, 0x1, 0x1, 0x1,
+/*   0 */   PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_P_N, PML_MOV_ADDR_A), 0x00, 0x00, 0x00, 0x60,
+/*   6 */   PML_ADD, PML_MATH_N, 0x1, 0x1, 0x1, 0x1,
 
-        PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_A), 0x00, 0x00, 0x00, 0x10,
-        PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_X), 0x00, 0x00, 0x00, 0x0,
-        PML_INSERT, PML_INSERT_M, 0x0, 0x0, 0x0, 0x0, 
+/*  12 */   PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_A), 0x00, 0x00, 0x00, 0x10,
+/*  18 */   PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_X), 0x00, 0x00, 0x00, 0x0,
+/*  24 */   PML_INSERT, PML_INSERT_M, 0x0, 0x0, 0x0, 0x0, 
 
-        PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_X), 0x11, 0x22, 0x33, 0x44,
-        PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_X, PML_MOV_ADDR_M_N), 0x0, 0x0, 0x0, 0x6,
+/*  30 */   PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_X), 0x11, 0x22, 0x33, 0x44,
+/*  36 */   PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_X, PML_MOV_ADDR_M_N), 0x0, 0x0, 0x0, 0x6,
 
-        PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_A), 0x00, 0x00, 0x00, 0x8,
-        PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_X), 0x00, 0x00, 0x00, 0x0,
-        PML_DELETE, PML_INSERT_M, 0x0, 0x0, 0x0, 0x0, 
+/*  42 */   PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_A), 0x00, 0x00, 0x00, 0x10,
+/*  48 */   PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_X), 0x00, 0x00, 0x00, 0x0,
+/*  54 */   PML_DELETE, PML_INSERT_M, 0x0, 0x0, 0x0, 0x0, 
+
+/*  60 */   PML_MOVS, PML_MOVS_TDB(PML_MOVS_P_LEN, PML_MOVS_ADDR_A), 0, 0, 0, 0,
+/*  66 */   PML_MOVS, PML_MOVS_TDB(PML_MOVS_M_LEN, PML_MOVS_ADDR_X), 0, 0, 0, 0,
+/*  72 */   PML_JLT, PML_JCOND_X, 0, 0, 0, 18,
+/*  78 */   PML_SUB, PML_MATH_X, 0, 0, 0, 0,
+/*  84 */   PML_INSERT, PML_INSERT_M, 0, 0, 0, 0,
+/*  90 */   PML_MOVS, PML_MOVS_TDB(PML_MOVS_P_LEN, PML_MOVS_ADDR_A), 0, 0, 0, 0,
+/*  96 */   PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_Y), 0, 0, 0, 0,
+/* 102 */   PML_COPY, PML_COPY_P_TO_M, 0, 0, 0, 0,
+/* 108 */   PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_X), 0, 0, 0, 14,
+/* 114 */   PML_MOVH, PML_MOV_DSB(PML_MOV_ADDR_P_N, PML_MOV_ADDR_Y), 0, 0, 0, 24,
+/* 120 */   PML_MOVH, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_A), 0, 0, 0, 0,
+/* 126 */   PML_MOVH, PML_MOV_DSB(PML_MOV_ADDR_A, PML_MOV_ADDR_M_N), 0, 0, 0, 24,
+/*     */   PML_CHECKSUM, PML_CHECKSUM_IPV4_M_X, 0, 0, 0, 0,
+/*     */   PML_MOVH, PML_MOV_DSB(PML_MOV_ADDR_A, PML_MOV_ADDR_M_N), 0, 0, 0, 24,
+/*     */
+/*     */
+
     };
     ctx->mlen = 0;
     ctx->m = NULL;
@@ -73,6 +91,10 @@ bool pml_md_save_program(struct pmlvm_context *ctx, u_int8_t *newprog, u_int32_t
     ctx->proglen = len;
     return 1;
 }
+
+void pml_md_memset(void *dest, u_int8_t b, u_int32_t sz) {
+    memset(dest, b, sz);
+}
 void pml_md_memmove(void *dest, const void *src, u_int32_t n) {
     memmove(dest, src, n);
 }
@@ -84,8 +106,7 @@ u_int32_t pml_md_currenttime(void) {
 /* beforehand: nbytes is checked, startoff must be <= the length */
 bool pml_md_insert_m(u_int32_t nbytes, u_int32_t startoff, struct pmlvm_context *context) {
     const u_int32_t newsz = context->mlen + nbytes;
-    printf("newsz: mlen 0x%x  nbytes 0x%x  0x%x\n", context->mlen, nbytes, newsz); /* XXX */
-    sleep(1); /* XXX */
+    printf("XXX: newsz: mlen 0x%x  nbytes 0x%x  0x%x\n", context->mlen, nbytes, newsz); /* XXX */
     u_int8_t *newm;
     if(context->mlen > 0) {
         newm = realloc(context->m, newsz);

@@ -34,12 +34,14 @@ DELETE [M|P]: delete A bytes (will be zeroed)
         0x05 0x00 .. .. .. ..: insert A bytes starting at position M[X]
         0x05 0x01 .. .. .. ..: insert A bytes starting at position P[X]
 
-COPY dst src: copy A bytes from src[X] to dst[Y]
+COPY dst src: copy A bytes from source to dst[Y]
     results: 
         A <- 1 if success, 0 if failure
     opcodes:
         0x06 0x00 .. .. .. ..: copy A bytes from M[X] to P[Y]
         0x06 0x01 .. .. .. ..: copy A bytes from P[X] to M[Y]
+        0x06 0x02 .. .. .. ..: clear A bytes starting at P[Y]
+        0x06 0x03 .. .. .. ..: clear A bytes starting at M[Y]
 
 NEWPROG src crc32: 
     opcodes:

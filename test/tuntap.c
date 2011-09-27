@@ -212,6 +212,7 @@ int main(int argc, char *argv[]) {
             warn("error while sending to interface");
             break;
         }
+        break; /* XXX */
     }
     close(tapfd);
     close(infd);

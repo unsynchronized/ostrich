@@ -4,6 +4,45 @@
 #include <assert.h>   // XXX: remove
 #endif
 
+
+/* classic checksum from ping.c */
+u_int16_t in_cksum(u_int16_t *buffer, u_int16_t length)
+{
+    u_int16_t oddbyte;
+    register long sum;              /* assumes long == 32 bits */
+    register u_int16_t answer;        /* assumes u_int16_t == 16 bits */
+
+    /*
+        Our algorithm is simple, using a 32-bit accumulator (sum),
+        we add sequential 16-bit words to it, and at the end, fold back
+        all the carry bits from the top 16 bits into the lower 16 bits.
+    */
+
+    sum = 0;
+    while (length > 1)  {
+        sum += *buffer++;
+        length -= 2;
+    }
+
+    if (length == 1) {               /* mop up an odd byte, if necessary */
+        oddbyte = 0;
+    /*  *((u_int8_t *) &oddbyte) = *(u_int8_t *)buffer;  one byte only */
+        *((u_int8_t *)&oddbyte) = (u_int8_t)(*buffer & 0xff);
+        sum += oddbyte;
+    }
+
+    /*
+        Add back carry outs from top 16 bits to low 16 bits.
+    */
+
+    DLOG("in_cks: %x\n", sum);
+
+    sum  = (sum >> 16) + (sum & 0xffff);    /* add high-16 to low-16 */
+    sum += (sum >> 16);                                /* add carry */
+    answer = ~sum;    /* ones-complement, then truncate to 16 bits */
+    return(answer);
+}
+
 static struct pmlvm_context *ctx = NULL;
 
 static u_int32_t pc = 0, x = 0, y = 0, a = 0;
@@ -87,12 +126,13 @@ static void pml_sum_comp(u_int8_t *buf, u_int16_t len, u_int32_t *sum) {
 }
 
 /* finish calculating an ip checksum */
-static u_int16_t pml_sum_finish(u_int32_t sum) {
+static u_int16_t pml_sum_finish(u_int32_t s) {
+    int32_t sum = (u_int32_t)s;
     u_int16_t osum;
     sum = (sum >> 16) + (sum & 0xffff);
-    sum = sum + (sum >> 16);
-    osum = (sum & 0xfff);
-    return ~osum;
+    sum += (sum >> 16);
+    osum = (~sum & 0xffff);
+    return (osum << 8) | (osum >> 8);
 }
 
 
@@ -137,12 +177,24 @@ static void pml_copy(u_int8_t *p) {
             return;
         }
         pml_md_memmove(&p[y], &ctx->m[x], a);
-    } else {
+    } else if(type == PML_COPY_P_TO_M) {
         if(CHECK_PLEN(x, a) == 0 || CHECK_MLEN(y, a) == 0) {
             a = 0;
             return;
         }
         pml_md_memmove(&ctx->m[y], &p[x], a);
+    } else if(type == PML_COPY_ZERO_P) {
+        if(CHECK_PLEN(y, a) == 0) {
+            a = 0;
+            return;
+        }
+        pml_md_memset(&p[y], 0, a);
+    } else if(type == PML_COPY_ZERO_M) {
+        if(CHECK_MLEN(y, a) == 0) {
+            a = 0;
+            return;
+        }
+        pml_md_memset(&ctx->m[y], 0, a);
     }
     a = 1;
 }
@@ -803,6 +855,12 @@ bool pmlvm_process(struct pml_packet_info *pinfo) {
     while(stopflag == 0 && pc < ctx->proglen) {
         p = pml_md_getpbuf(pinfo);
         const u_int8_t opcode = ctx->prog[pc];
+#ifdef DEBUG
+        DLOG("PC % 4d: a %08x x %08x y %08x : %02x %02x %02x %02x %02x %02x", pc, a, x, y,
+                (ctx->prog[pc] & 0xff), (ctx->prog[pc+1] & 0xff),
+                (ctx->prog[pc+2] & 0xff), (ctx->prog[pc+3] & 0xff),
+                (ctx->prog[pc+4] & 0xff), (ctx->prog[pc+5] & 0xff));
+#endif
         switch(opcode) {
             case PML_SETFLAG:
                 {

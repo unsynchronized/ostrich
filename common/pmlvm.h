@@ -99,7 +99,9 @@ bool pmlvm_process(struct pml_packet_info *pinfo);
 /* COPY */
 #define PML_COPY_M_TO_P 0x0
 #define PML_COPY_P_TO_M 0x1
-#define PML_COPY_MAX    0x1
+#define PML_COPY_ZERO_P 0x2
+#define PML_COPY_ZERO_M 0x3
+#define PML_COPY_MAX    0x3
 
 /* CHECKSUM */
 #define PML_CHECKSUM_IPV4_M_X   0x0
