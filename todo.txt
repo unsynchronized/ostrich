@@ -1,14 +1,15 @@
+- test checksum
 - command channel: secret only, UDP/ICMP
 - check to make sure result codes are always being set
-- checksum
-- divert
-- find
 - check all uses of int32_t (signd ints) are okay
 - fix insert/delete on P in test/pmlmachdep; can't realloc/malloc, they're stack-allocated
 - add header offsets
 - max instruction count
 - exec?
+- test find
 - test jumps
 - test movs header offsets
+- test divert
 - test copy 
 - test newprog
+- implement tuntap PML_CHANNEL_IP

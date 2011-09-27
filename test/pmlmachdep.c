@@ -167,5 +167,3 @@ bool pml_md_delete_p(u_int32_t nbytes, u_int32_t startoff, struct pml_packet_inf
     return 1;
 }
 
-
-

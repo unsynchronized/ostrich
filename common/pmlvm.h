@@ -39,6 +39,8 @@ struct pmlvm_context {
     u_int32_t mlen;         /* current length of M (bytes) */
     u_int8_t *prog;         /* program code */
     u_int32_t proglen;      /* program code len (bytes) */
+
+    void *md_ptr;           /* free pointer; machdep layer is free to populate */
 };
 
 void pmlvm_init(void);
@@ -82,6 +84,10 @@ bool pmlvm_process(struct pml_packet_info *pinfo);
 #define PML_EXEC_P 0
 #define PML_EXEC_M 1
 
+/* DIVERT */
+#define PML_CHANNEL_RAW 0xff
+#define PML_CHANNEL_IP 0xfe
+
 /* INSERT */
 #define PML_INSERT_M 0x0
 #define PML_INSERT_P 0x1
@@ -100,10 +106,11 @@ bool pmlvm_process(struct pml_packet_info *pinfo);
 #define PML_CHECKSUM_IPV4_P_X   0x1
 #define PML_CHECKSUM_ICMP4_M_X  0x2
 #define PML_CHECKSUM_ICMP4_P_X  0x3
-#define PML_CHECKSUM_UDP4_M_3   0x4
+#define PML_CHECKSUM_UDP4_M_X   0x4
 #define PML_CHECKSUM_UDP4_P_X   0x5
 #define PML_CHECKSUM_TCP4_M_X   0x6
 #define PML_CHECKSUM_TCP4_P_X   0x7
+#define PML_CHECKSUM_MAX        0x7     /* don't forget to update */
 
 /* SETFLAG */
 #define PML_FLAG_DELIVERPACKET 0x0

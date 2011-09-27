@@ -1,6 +1,8 @@
 #include <pmlvm.h>
 #include <pmlmachdep.h>
+#ifdef DEBUG
 #include <assert.h>   // XXX: remove
+#endif
 
 static struct pmlvm_context *ctx = NULL;
 
@@ -10,6 +12,9 @@ static struct pml_packet_info *curppi;
 
 static void pml_copy(u_int8_t *p);
 static void pml_mov(u_int8_t *p);
+static void pml_sum_phdr4(u_int8_t *pkt, u_int16_t len, u_int32_t *sum);
+static void pml_sum_comp(u_int8_t *buf, u_int16_t len, u_int32_t *sum);
+static u_int16_t pml_sum_finish(u_int32_t sum);
 
 #define EXTRACT4(x) ((((u_int8_t)((x)[0])) << 24) \
                     | (((u_int8_t)((x)[1])) << 16) \
@@ -30,6 +35,66 @@ void pmlvm_init(void) {
         return;
     }
 }
+
+typedef union phdru { 
+    u_int8_t buf[12];
+    struct phdr {
+        u_int8_t srcaddr[4];
+        u_int8_t dstaddr[4];
+        u_int8_t zero;
+        u_int8_t protocol;
+        u_int8_t len;
+    } phdr;
+} phdru;
+
+/* calculate the sum of all 16-bit words in the TCP/UDP pseudoheader, given a pointer
+ * to the start of an IPv4 packet and the length to be used in the calculation.
+ *
+ * The calculated sum is added to the value already stored in *sum.
+ */
+static void pml_sum_phdr4(u_int8_t *pkt, u_int16_t len, u_int32_t *sum) {
+    phdru pu;
+    pu.phdr.srcaddr[0] = pkt[12];
+    pu.phdr.srcaddr[1] = pkt[13];
+    pu.phdr.srcaddr[2] = pkt[14];
+    pu.phdr.srcaddr[3] = pkt[15];
+    pu.phdr.dstaddr[0] = pkt[16];
+    pu.phdr.dstaddr[1] = pkt[17];
+    pu.phdr.dstaddr[2] = pkt[18];
+    pu.phdr.dstaddr[3] = pkt[19];
+    pu.phdr.zero = 0;
+    pu.phdr.protocol = pkt[6];
+    pu.phdr.len = len;
+    pml_sum_comp(pu.buf, 12, sum);
+}
+
+/* calculate the sum of all 16-bit words in the given buffer, padding with zeroes if
+ * necessary.  the calculated sum is added to the value aready stored in *sum.
+ */
+static void pml_sum_comp(u_int8_t *buf, u_int16_t len, u_int32_t *sum) {
+    u_int16_t *wptr = (u_int16_t *)buf;
+    u_int32_t s = 0;
+    while(len > 1) {
+        s += *wptr;
+        wptr++;
+        len -= 2;
+    }
+    if(len == 1) {
+        buf = (u_int8_t *)wptr;
+        s += ((u_int16_t)((buf[0] & 0xff) << 16));
+    }
+    *sum = *sum + s;
+}
+
+/* finish calculating an ip checksum */
+static u_int16_t pml_sum_finish(u_int32_t sum) {
+    u_int16_t osum;
+    sum = (sum >> 16) + (sum & 0xffff);
+    sum = sum + (sum >> 16);
+    osum = (sum & 0xfff);
+    return ~osum;
+}
+
 
 #define CHECK_MLEN check_mlen
 static bool check_mlen(u_int32_t idx, u_int32_t len) {
@@ -491,6 +556,201 @@ static void pml_mov(u_int8_t *p) {
     }
 }
 
+/* type is beforehand to ensure it's a valid value */
+void pml_checksum(const u_int8_t type) {
+    u_int8_t *p = curppi->pkt;
+    switch(type) {
+        case PML_CHECKSUM_IPV4_M_X:
+            {
+                if(CHECK_MLEN(x, 1) == 0) {
+                    DLOG("CHECKSUM IPV4 M[X] with too-short M");
+                    a = 0;
+                    return;
+                }
+                u_int16_t tlen = (ctx->m[x] & 0xf) * 4;
+                if(CHECK_MLEN(x, tlen) == 0) {
+                    DLOG("CHECKSUM IPV4 M[X]: not enough space to accommodate len in header");
+                    a = 0;
+                    return;
+                }
+                u_int32_t sumtemp = 0;
+                pml_sum_comp(&ctx->m[x], tlen, &sumtemp);
+                a = pml_sum_finish(sumtemp);
+            }
+            break;
+        case PML_CHECKSUM_IPV4_P_X:
+            {
+                if(CHECK_PLEN(x, 1) == 0) {
+                    DLOG("CHECKSUM IPV4 P[X] with too-short P");
+                    a = 0;
+                    return;
+                }
+                u_int16_t tlen = (p[x] & 0xf) * 4;
+                if(CHECK_PLEN(x, tlen) == 0) {
+                    DLOG("CHECKSUM IPV4 P[X]: not enough space to accommodate len in header");
+                    a = 0;
+                    return;
+                }
+                u_int32_t sumtemp = 0;
+                pml_sum_comp(&p[x], tlen, &sumtemp);
+                a = pml_sum_finish(sumtemp);
+            }
+            break;
+        case PML_CHECKSUM_ICMP4_M_X:
+            {
+                if(CHECK_MLEN(x, 4) == 0) {
+                    DLOG("CHECKSUM ICMP4 M[X] with too-short M");
+                    a = 0;
+                    return;
+                }
+                u_int16_t tlen = ((ctx->m[x+2] & 0xff) << 16) | (ctx->m[x+3] & 0xff);
+                u_int16_t iphlen = (ctx->m[x] & 0xf) * 4;
+                if(tlen <= iphlen) {
+                    DLOG("CHECKSUM ICMP4 M[X]: total len is not larger than ip hdr len");
+                    a = 0;
+                    return;
+                }
+                if(CHECK_MLEN(x, tlen) == 0) {
+                    DLOG("CHECKSUM ICMP4 M[X]: not enough space to accommodate len in header");
+                    a = 0;
+                    return;
+                }
+                u_int32_t sumtemp = 0;
+                pml_sum_comp(&ctx->m[x+iphlen], tlen-iphlen, &sumtemp);
+                a = pml_sum_finish(sumtemp);
+            }
+            break;
+        case PML_CHECKSUM_ICMP4_P_X:
+            {
+                if(CHECK_PLEN(x, 4) == 0) {
+                    DLOG("CHECKSUM ICMP4 P[X] with too-short P");
+                    a = 0;
+                    return;
+                }
+                u_int16_t tlen = ((p[x+2] & 0xff) << 16) | (p[x+3] & 0xff);
+                u_int16_t iphlen = (p[x] & 0xf) * 4;
+                if(tlen <= iphlen) {
+                    DLOG("CHECKSUM ICMP4 P[X]: total len is not larger than ip hdr len");
+                    a = 0;
+                    return;
+                }
+                if(CHECK_PLEN(x, tlen) == 0) {
+                    DLOG("CHECKSUM ICMP4 P[X]: not enough space to accommodate len in header");
+                    a = 0;
+                    return;
+                }
+                u_int32_t sumtemp = 0;
+                pml_sum_comp(&p[x+iphlen], tlen-iphlen, &sumtemp);
+                a = pml_sum_finish(sumtemp);
+            }
+            break;
+        case PML_CHECKSUM_UDP4_M_X:
+            {
+                if(CHECK_MLEN(x, 4) == 0) {
+                    DLOG("CHECKSUM UDP4 M[X] with too-short M");
+                    a = 0;
+                    return;
+                }
+                u_int16_t tlen = ((ctx->m[x+2] & 0xff) << 16) | (ctx->m[x+3] & 0xff);
+                u_int16_t iphlen = (ctx->m[x] & 0xf) * 4;
+                if(tlen < (iphlen + 8)) {
+                    DLOG("CHECKSUM UDP4 M[X]: total len is too small");
+                    a = 0;
+                    return;
+                }
+                if(CHECK_MLEN(x, tlen) == 0) {
+                    DLOG("CHECKSUM UDP4 M[X]: not enough space to accommodate len");
+                    a = 0;
+                    return;
+                }
+                const u_int16_t udplen = ((ctx->m[x+iphlen+4] & 0xff) << 16) | (ctx->m[x+iphlen+5] & 0xff);
+                u_int32_t sumtemp = 0;
+                pml_sum_phdr4(&ctx->m[x], udplen, &sumtemp);
+                pml_sum_comp(&ctx->m[x+iphlen], tlen-iphlen, &sumtemp);
+                a = pml_sum_finish(sumtemp);
+            }
+            break;
+        case PML_CHECKSUM_UDP4_P_X:
+            {
+                if(CHECK_PLEN(x, 4) == 0) {
+                    DLOG("CHECKSUM UDP4 P[X] with too-short P");
+                    a = 0;
+                    return;
+                }
+                u_int16_t tlen = ((p[x+2] & 0xff) << 16) | (p[x+3] & 0xff);
+                u_int16_t iphlen = (p[x] & 0xf) * 4;
+                if(tlen < (iphlen + 8)) {
+                    DLOG("CHECKSUM UDP4 P[X]: total len is too small");
+                    a = 0;
+                    return;
+                }
+                if(CHECK_PLEN(x, tlen) == 0) {
+                    DLOG("CHECKSUM UDP4 P[X]: not enough space to accommodate len");
+                    a = 0;
+                    return;
+                }
+                const u_int16_t udplen = ((p[x+iphlen+4] & 0xff) << 16) | (p[x+iphlen+5] & 0xff);
+                u_int32_t sumtemp = 0;
+                pml_sum_phdr4(&p[x], udplen, &sumtemp);
+                pml_sum_comp(&p[x+iphlen], tlen-iphlen, &sumtemp);
+                a = pml_sum_finish(sumtemp);
+            }
+            break;
+        case PML_CHECKSUM_TCP4_M_X:
+            {
+                if(CHECK_MLEN(x, 4) == 0) {
+                    DLOG("CHECKSUM TCP4 M[X] with too-short M");
+                    a = 0;
+                    return;
+                }
+                u_int16_t tlen = ((ctx->m[x+2] & 0xff) << 16) | (ctx->m[x+3] & 0xff);
+                u_int16_t iphlen = (ctx->m[x] & 0xf) * 4;
+                if(tlen < (iphlen + 20)) {
+                    DLOG("CHECKSUM TCP4 M[X]: total len is too small");
+                    a = 0;
+                    return;
+                }
+                if(CHECK_MLEN(x, tlen) == 0) {
+                    DLOG("CHECKSUM TCP4 M[X]: not enough space to accommodate len");
+                    a = 0;
+                    return;
+                }
+                const u_int16_t tcplen = tlen-iphlen;
+                u_int32_t sumtemp = 0;
+                pml_sum_phdr4(&ctx->m[x], tcplen, &sumtemp);
+                pml_sum_comp(&ctx->m[x+iphlen], tlen-iphlen, &sumtemp);
+                a = pml_sum_finish(sumtemp);
+            }
+            break;
+        case PML_CHECKSUM_TCP4_P_X:
+            {
+                if(CHECK_PLEN(x, 4) == 0) {
+                    DLOG("CHECKSUM TCP4 P[X] with too-short P");
+                    a = 0;
+                    return;
+                }
+                u_int16_t tlen = ((p[x+2] & 0xff) << 16) | (p[x+3] & 0xff);
+                u_int16_t iphlen = (p[x] & 0xf) * 4;
+                if(tlen < (iphlen + 20)) {
+                    DLOG("CHECKSUM TCP4 P[X]: total len is too small");
+                    a = 0;
+                    return;
+                }
+                if(CHECK_PLEN(x, tlen) == 0) {
+                    DLOG("CHECKSUM TCP4 P[X]: not enough space to accommodate len");
+                    a = 0;
+                    return;
+                }
+                const u_int16_t tcplen = tlen-iphlen;
+                u_int32_t sumtemp = 0;
+                pml_sum_phdr4(&p[x], tcplen, &sumtemp);
+                pml_sum_comp(&p[x+iphlen], tlen-iphlen, &sumtemp);
+                a = pml_sum_finish(sumtemp);
+            }
+            break;
+    }
+}
+
 #ifdef DEBUG
 void hexdump(char *const buf, unsigned long size);
 
@@ -882,7 +1142,7 @@ bool pmlvm_process(struct pml_packet_info *pinfo) {
                         a = 0;
                         break;
                     }
-                    if(pml_md_divert(channel, &ctx->m[x], n)) {
+                    if(pml_md_divert(ctx, channel, &ctx->m[x], n)) {
                         a = 1;
                     } else {
                         a = 0;
@@ -898,11 +1158,48 @@ bool pmlvm_process(struct pml_packet_info *pinfo) {
                         a = 0;
                         break;
                     }
-                    if(pml_md_divert(channel, &p[x], n)) {
+                    if(pml_md_divert(ctx, channel, &p[x], n)) {
                         a = 1;
                     } else {
                         a = 0;
                     }
+                }
+                break;
+            case PML_FIND:
+                {
+                    if(a == 0 || CHECK_PLEN(x, a) == 0 || CHECK_MLEN(y, a)) {
+                        a = 0;
+                        break;
+                    }
+                    /* XXX: investigate knuth-morris-pratt on packet-sized matches */
+                    const u_int32_t len = a;
+                    u_int32_t pi = x, mi;
+                    a = 0;
+                    for(; pi < pinfo->pktlen - (len - 1); pi++) {
+                        if(p[pi] == ctx->m[y]) {
+                            for(mi = 1; mi < len; mi++) {
+                                if(p[pi+mi] != ctx->m[y+mi]) {
+                                    break;
+                                }
+                            }
+                            if(mi == len) {
+                                a = 1;
+                                x = pi;
+                                break;
+                            } 
+                        }
+                    }
+                }
+                break;
+            case PML_CHECKSUM:
+                {
+                    const u_int8_t type = ctx->prog[pc+1];
+                    if(type >= PML_CHECKSUM_MAX) {
+                        DLOG("invalid checksum type: %x\n", type);
+                        a = 0;
+                        break;
+                    }
+                    pml_checksum(type);
                 }
                 break;
             default:

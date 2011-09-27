@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <netinet/in.h>
@@ -16,6 +17,7 @@
 #include <netpacket/packet.h>
 #include <net/ethernet.h> 
 #include <pmlvm.h>
+#include <pmlmachdep.h>
 
 /*
  * TAP-based ostrich implementation; pulls packets from interface (default eth2),
@@ -33,6 +35,12 @@
 #define MIN(x,y) ((x) > (y) ? (y) : (x))
 
 void pmlvm_debug(void);
+
+struct pml_tuntap_context {
+    u_int8_t *preamblebuf;
+    u_int32_t preamblebuflen;
+    int tapfd;
+};
 
 void hexdump(char *const buf, unsigned long size) {
     unsigned int curpos = 0;
@@ -129,6 +137,9 @@ int main(int argc, char *argv[]) {
     char namebuf[1024];
     char controlbuf[1024];
     struct pml_packet_info ppi;
+    struct pml_tuntap_context ptcontext;
+    memset(&ptcontext, 0, sizeof(ptcontext));
+    ptcontext.tapfd = tapfd;
 
     pmlvm_init();
     
@@ -194,6 +205,8 @@ int main(int argc, char *argv[]) {
 
         allbuf[0] = allbuf[1] = 0;
         memcpy(&allbuf[2], &insll->sll_protocol, 2);
+        ptcontext.preamblebuf = (u_int8_t *)allbuf;
+        ptcontext.preamblebuflen = 4;
         int sret = write(tapfd, allbuf, 4+ppi.pktlen);
         if(sret == -1) {
             warn("error while sending to interface");
@@ -205,3 +218,32 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
+
+bool pml_md_divert(struct pmlvm_context *ctx, u_int8_t channel, u_int8_t *packet, u_int32_t packetlen) {
+    struct pml_tuntap_context *ptc = (struct pml_tuntap_context *)ctx->md_ptr;
+    if(ptc == NULL || packetlen == 0) {
+        return 0;
+    }
+    if(channel == PML_CHANNEL_RAW) {
+        u_int8_t *outp = (u_int8_t *)malloc(packetlen + ptc->preamblebuflen);
+        if(outp == NULL) {
+            return 0;
+        }
+        if(ptc->preamblebuflen > 0) {
+            memcpy(outp, ptc->preamblebuf, ptc->preamblebuflen);
+        }
+        memmove(&outp[ptc->preamblebuflen], packet, packetlen);
+        int sret = write(ptc->tapfd, outp, packetlen + ptc->preamblebuflen);
+        if(sret == -1) {
+            warn("error while DIVERTing to interface (RAW)");
+            return 0;
+        }
+        return 1;
+    } else if(channel == PML_CHANNEL_IP) {
+        assert(0);  /* XXX */
+    } else {
+        return 0;
+    }
+}
+
+
