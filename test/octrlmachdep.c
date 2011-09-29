@@ -3,6 +3,7 @@
 #include <pmltypes.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdarg.h>
@@ -65,6 +66,19 @@ struct octrl_settings *octrl_md_retrieve_settings(void) {
         memcpy(current_settings->program, XXXprog, sizeof(XXXprog));
     }
 
+    current_settings->cookie = malloc(6);
+    if(current_settings->cookie != NULL) {
+        memcpy(current_settings->cookie, "cookie", 6);
+        current_settings->has_cookie = 1;
+        current_settings->cookielen = 6;
+    }
+    current_settings->commandip = malloc(4);
+    u_int32_t inaddr = inet_addr("192.168.0.4");
+    if(current_settings->commandip != NULL) {
+        memcpy(current_settings->commandip, &inaddr, 4);
+        current_settings->commandiplen = 4;
+        current_settings->has_commandip = 1;
+    }
     current_settings->commandport = 4142;
     current_settings->has_commandport = 1;
     return current_settings;

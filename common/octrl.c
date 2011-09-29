@@ -111,10 +111,10 @@ bool octrl_check_command(struct octrl_settings *settings, struct pml_packet_info
         if(found == 0) {
             return 1;
         }
-        dataoff += i;
+        dataoff += (i + settings->cookielen);
     }
     if(CHECK_PLEN(ip4tlhdroff+dataoff, 2) == 0) {
-        DLOG("command pcaket too short for command data len");
+        DLOG("command packet too short for command data len");
         return 1;
     }
     u_int16_t pktlen = ((p[ip4tlhdroff+dataoff] & 0xff) << 8) | (p[ip4tlhdroff+dataoff+1] & 0xff);
@@ -140,7 +140,6 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
         DLOG("%x ", opcode);
         i++; /* XXX */
     }
-    void exit(int x);
-    exit(1);
+    void exit(int x); exit(1);      /* XXX */
     return 0;
 }
