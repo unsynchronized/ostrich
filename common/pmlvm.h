@@ -12,7 +12,7 @@
 #endif /* DEBUG */
 
 #define TLPROTO_UNKNOWN  0
-#define TLPROTO_ETHERNET 1
+#define TLPROTO_80213    1
 
 /* pml_packet_info: used to describe the packet to be processed.  This includes a
  * pointer to the packet itself as well as the data for most of the special variables
@@ -24,12 +24,14 @@ typedef struct pml_packet_info {
     u_int32_t iphdroff;
     u_int32_t ethhdroff;
     u_int32_t ip4tlhdroff;
+    u_int32_t vlantag;
     u_int8_t tlproto;
 
     struct {
         unsigned int has_iphdroff : 1;
         unsigned int has_ethhdroff : 1;
-        unsigned int has_tcphdroff : 1;
+        unsigned int has_ip4tlhdroff : 1;
+        unsigned int has_vlantag : 1;
     } flags;
 } pml_packet_info;
 
@@ -43,7 +45,9 @@ struct pmlvm_context {
     void *md_ptr;           /* free pointer; machdep layer is free to populate */
 };
 
-void pmlvm_init(void);
+void pmlvm_init(u_int8_t *program, u_int32_t proglen, u_int8_t *m, u_int32_t mlen);
+
+/* XXX: document */
 bool pmlvm_process(struct pml_packet_info *pinfo);
 
 

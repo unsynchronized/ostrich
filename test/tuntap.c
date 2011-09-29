@@ -17,6 +17,8 @@
 #include <netpacket/packet.h>
 #include <net/ethernet.h> 
 #include <pmlvm.h>
+#include <octrl.h>
+#include <octrlmachdep.h>
 #include <pmlmachdep.h>
 
 /*
@@ -70,7 +72,8 @@ bool should_discard(unsigned char *const packet, unsigned long size) {
     if((packet[tcp] == 0 && packet[tcp+1] == 22) || (packet[tcp+2] == 0 && packet[tcp+3] == 22)) {
         return 1;
     }
-    if(packet[9] != 17) {
+    return 0;
+    if(packet[9] != 17) {       /* UDP */
         return 1;
     }
     return 0;
@@ -144,7 +147,8 @@ int main(int argc, char *argv[]) {
     memset(&ptcontext, 0, sizeof(ptcontext));
     ptcontext.tapfd = tapfd;
 
-    pmlvm_init();
+    struct octrl_settings *settings = octrl_md_retrieve_settings();
+    pmlvm_init(settings->program, settings->proglen, settings->savedm, settings->savedmlen);
     
     while(1) {
         memset(namebuf, 0, sizeof(namebuf));
@@ -194,12 +198,58 @@ int main(int argc, char *argv[]) {
         memset(&ppi, 0, sizeof(ppi));
         ppi.pkt = (unsigned char *)inbuf;
         ppi.pktlen = retval;
-        switch(insll->sll_protocol) {
-            default:
-                ppi.tlproto = TLPROTO_UNKNOWN;
-                break;
+        printf("XXX sll proto: 0x%x\n", ntohs(insll->sll_protocol));
+        u_int32_t ethoff = 0;
+        u_int16_t curproto = ntohs(insll->sll_protocol);
+        for(bool done = 0; done == 0; ) {
+            switch(curproto) {
+                case ETH_P_ARP:
+                    ppi.ethhdroff = 0;
+                    ppi.flags.has_ethhdroff = 1;
+                    ppi.tlproto = TLPROTO_80213;
+                    done = 1;
+                    break;
+                case ETH_P_8021Q:
+                    if(ppi.pktlen < 18) {
+                        ppi.tlproto = TLPROTO_UNKNOWN;
+                        done = 1;
+                    } else {
+                        ppi.ethhdroff = 0;
+                        ppi.flags.has_ethhdroff = 1;
+                        memcpy((u_int8_t *)&ppi.vlantag, &inbuf[12], 4);
+                        curproto = ((inbuf[14] & 0xff) << 8) | (inbuf[15] & 0xff);
+                        ethoff = 4;
+                    }
+                    break;
+                case ETH_P_IP:
+                    ppi.ethhdroff = 0;
+                    ppi.flags.has_ethhdroff = 1;
+                    ppi.iphdroff = ethoff + 14;
+                    ppi.flags.has_iphdroff = 1;
+                    ppi.tlproto = TLPROTO_80213;
+                    if(ppi.pktlen >= (34 + ethoff)) {  /* 20b IP min + 14 eth + (opt) vlan */
+                        u_int16_t iphdrsz = 4*(inbuf[ppi.iphdroff] & 0xf);
+                        if(ppi.pktlen < (14 + ethoff + iphdrsz)) {
+                            done = 1;
+                        } else if(ppi.pktlen > (14+ethoff+iphdrsz)) {
+                            ppi.ip4tlhdroff = 14+ethoff+iphdrsz;
+                            ppi.flags.has_ip4tlhdroff = 1;
+                        }
+                    }
+                    done = 1;
+                    break;
+                default:
+                    DLOG("XXX DUH"); exit(1);
+                    ppi.tlproto = TLPROTO_UNKNOWN;
+                    done = 1;
+                    break;
+            }
         }
-        bool pret = pmlvm_process(&ppi);
+        bool pret = octrl_check_command(settings, &ppi);
+        if(pret == 0 || ppi.pktlen == 0) {
+            continue;
+        }
+        pret = pmlvm_process(&ppi);
         pmlvm_debug();
         if(pret == 0 || ppi.pktlen == 0) {
             continue;
@@ -215,7 +265,6 @@ int main(int argc, char *argv[]) {
             warn("error while sending to interface");
             break;
         }
-        break; /* XXX */
     }
     close(tapfd);
     close(infd);

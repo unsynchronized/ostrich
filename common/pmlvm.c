@@ -26,15 +26,16 @@ static u_int16_t pml_sum_finish(u_int32_t sum);
 /* initialize pmlvm -- should be called only once.  will alloc the context, load all
  * necessary data, and get everything ready to process packets
  */
-void pmlvm_init(void) {
+void pmlvm_init(u_int8_t *program, u_int32_t proglen, u_int8_t *m, u_int32_t mlen) {
     ctx = pml_md_alloc_context();
     if(ctx == NULL) {
         DLOG("pmlvm_init: context alloc failed");
         return;
     }
-    if(pml_md_retrieve(ctx) == 0) {
-        return;
-    }
+    ctx->prog = program;
+    ctx->proglen = proglen;
+    ctx->m = m;
+    ctx->mlen = mlen;
 }
 
 typedef union phdru { 

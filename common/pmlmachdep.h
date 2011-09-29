@@ -20,14 +20,6 @@ struct pmlvm_context *pml_md_alloc_context(void);
 /* XXX: doc */
 void pml_md_free_context(struct pmlvm_context *ctx);
 
-/* pml_md_retrieve: retrieve the contents of M from flash; returns 1 if it was
- * successfully retrieved (or empty) or 0 if an error occurred.
- *
- * after calling this, the context's m/mlen parameters will be valid either way.
- */
-bool pml_md_retrieve(struct pmlvm_context *ctx);
-
-
 /* pml_md_debug: safely log a debugging message; typically these are errors or
  * warnings.  only called when DEBUG is defined
  */

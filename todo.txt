@@ -1,14 +1,14 @@
-- command channel: secret only, UDP/ICMP
+- command channel: secret only, IPfrag/UDP/ICMP
 - check to make sure result codes are always being set
 - check all uses of int32_t (signd ints) are okay
+- add support for other ETH_P_* types (assert on unknown, monitor everything)
 - fix insert/delete on P in test/pmlmachdep; can't realloc/malloc, they're stack-allocated
-- add header offsets
+- add header offsets to test/pmlmachdep
+- should we fix byte order on vlan tags?
 - max instruction count
 - exec?
 - test find
-- test jumps
 - test movs header offsets
 - test divert
-- test copy 
 - test newprog
 - implement tuntap PML_CHANNEL_IP

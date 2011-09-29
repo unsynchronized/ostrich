@@ -27,6 +27,67 @@ config options
     - get_capabilities
         - available data for 
 
+OCTRL_SEND_VERSION  0x0
+    0x1 TS:
+    TS:
+
+OCTRL_SEND_CHANNELS 0x3
+    0x3 TS:
+    TS:
+            0x0: channel
+
+OCTRL_SEND_FLAGS    0xA
+    0xA TS
+    TS:
+        0x0: channel
+
+OCTRL_SEND_M        0x6
+    0x6 AA BB CC DD TS
+    TS:
+        0x0 channel
+
+OCTRL_SET_FILTER    0x1: completely replace filter with contents
+    0x1 AA BB .. ..
+    0xAABB: length
+    
+OCTRL_ADD_CHANNEL   0x4
+    0x4 ID TA TB TC TD AL .. PA PB PC PD
+    
+OCTRL_DEL_CHANNEL   0x5
+    0x5 ID
+
+OCTRL_SET_M         0x7
+    0x6 MA MB MC MD DA DB ..
+    0xDADB: length to insert
+    0xMAMBMCMD: position to insert at
+
+OCTRL_SAVE_M        0x8
+    0x8 OA OB OC OD LA LB LC LD
+    replace the contents of permanent-M with the data starting at M[0xLALBLCLD],
+    length 0xLALBLCLD (length == 0 deletes permanent-M)
+
+OCTRL_SET_FLAG      0x9
+    0x9 FA FB LA LB .. 
+    set flag 0xFAFB to the value of length 0xLALB (length == 0 deletes)
+
+OCTRL_SET_COOKIE    0xB
+    0xB CA CB ..
+    set the cookie to 
+
+OCTRL_SET_CMDIP     0xC
+    0xC LA LB ..
+    set command IP to 
+
+OCTRL_SET_CMDPORT   0xD
+    0xD PA PB
+
+OCTRL_CLEAR_M       0xE
+    0xE
+
+OCTRL_DELETE_M      0xF
+    0xF MA MB MC MD LA LB
+    delete 0xLALB bytes of M, starting at 0xMAMBMCMD
+
 
 
 
