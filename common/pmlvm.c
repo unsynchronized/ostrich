@@ -772,10 +772,12 @@ void hexdump(char *const buf, unsigned long size);
 void pmlvm_debug(void) {
     if(ctx) {
         DLOG("p_d: mlen 0x%x  proglen 0x%x  pc 0x%x  a %08x  x %08x  y %08x", ctx->mlen, ctx->proglen, pc, a, x, y);
+#if 0
         if(ctx->mlen > 0) {
             DLOG("m:");
             hexdump((char * const)ctx->m, ctx->mlen);
         }
+#endif
     } else {
         DLOG("p_d: no ctx");
     }

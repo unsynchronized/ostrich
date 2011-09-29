@@ -64,5 +64,8 @@ struct octrl_settings *octrl_md_retrieve_settings(void) {
         current_settings->proglen = sizeof(XXXprog);
         memcpy(current_settings->program, XXXprog, sizeof(XXXprog));
     }
+
+    current_settings->commandport = 4142;
+    current_settings->has_commandport = 1;
     return current_settings;
 }
