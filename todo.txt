@@ -4,7 +4,9 @@
 - add support for other ETH_P_* types (assert on unknown, monitor everything)
 - fix insert/delete on P in test/pmlmachdep; can't realloc/malloc, they're stack-allocated
 - add header offsets to test/pmlmachdep
+- check for mem leaks
 - should we fix byte order on vlan tags?
+- check for int overflows
 - max instruction count
 - exec?
 - test find

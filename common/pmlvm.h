@@ -45,6 +45,9 @@ struct pmlvm_context {
     void *md_ptr;           /* free pointer; machdep layer is free to populate */
 };
 
+/* XXX: document */
+struct pmlvm_context *pmlvm_current_context(void);
+
 void pmlvm_init(u_int8_t *program, u_int32_t proglen, u_int8_t *m, u_int32_t mlen);
 
 /* XXX: document */

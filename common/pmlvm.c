@@ -1,5 +1,6 @@
 #include <pmlvm.h>
 #include <pmlmachdep.h>
+#include <utils.h>
 #ifdef DEBUG
 #include <assert.h>   // XXX: remove
 #endif
@@ -17,11 +18,10 @@ static void pml_sum_phdr4(u_int8_t *pkt, u_int16_t len, u_int32_t *sum);
 static void pml_sum_comp(u_int8_t *buf, u_int16_t len, u_int32_t *sum);
 static u_int16_t pml_sum_finish(u_int32_t sum);
 
-#define EXTRACT4(x) ((((u_int8_t)((x)[0])) << 24) \
-                    | (((u_int8_t)((x)[1])) << 16) \
-                    | (((u_int8_t)((x)[2])) << 8) \
-                    | (((u_int8_t)((x)[3]))))
-#define EXTRACT2(x) ((((u_int8_t)((x)[0])) << 8) | (((u_int8_t)((x)[1]))))
+/* XXX: doc */
+struct pmlvm_context *pmlvm_current_context(void) {
+    return ctx;
+}
 
 /* initialize pmlvm -- should be called only once.  will alloc the context, load all
  * necessary data, and get everything ready to process packets

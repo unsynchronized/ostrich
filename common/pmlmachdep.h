@@ -17,6 +17,13 @@ bool pml_md_putpbuf(struct pml_packet_info *, u_int8_t *newpkt, u_int32_t newpkt
 /* XXX: doc */
 struct pmlvm_context *pml_md_alloc_context(void);
 
+/* pml_md_allocbuf: allocate a buffer to be freed by pml_md_free().  the buffer will
+ * be initialized with zeroes. 
+ * pml_md_allocbuf returns NULL if the allocations fails.
+ */
+u_int8_t *pml_md_allocbuf(u_int32_t sz);
+void pml_md_freebuf(u_int8_t *buf);
+
 /* XXX: doc */
 void pml_md_free_context(struct pmlvm_context *ctx);
 

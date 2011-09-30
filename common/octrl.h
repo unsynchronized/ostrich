@@ -6,9 +6,14 @@
 typedef struct octrl_channel {
     u_int8_t channelid;         /* XXX: remove? */
     u_int32_t channeltype;      /* type of channel */
-    u_int8_t *addr;             /* destination address */
+    u_int8_t addr[16];          /* destination address */
     u_int32_t port;             /* destination port */
 } octrl_channel;
+
+#define OCTRL_CHANNEL_UDP4  0x0     /* plain udp v4 packet */
+
+#define OCTRL_SEND_CHANNEL  0x0
+#define OCTRL_SEND_UDPIP4   0x1
 
 #define OCTRL_SEND_VERSION  0x0
 #define OCTRL_SET_FILTER    0x1
@@ -26,13 +31,18 @@ typedef struct octrl_channel {
 #define OCTRL_CLEAR_M       0xE
 #define OCTRL_DELETE_M      0xF
 
+#define OCTRL_SENDM_EMPTYM       0x0
+#define OCTRL_SENDM_VALID        0x1
+#define OCTRL_SENDM_INVALIDRANGE 0x2
+
 #define OCTRL_FLAG_ENABLE_COOKIE 0x0
 #define OCTRL_FLAG_ENABLE_PMLVM  0x1
+#define OCTRL_FLAG_MAX           0x1  /* don't forget to update this and the serializer! */
 
 struct octrl_settings {
     u_int8_t *cookie;           /* secret cookie preamble */
     u_int32_t cookielen;
-    bool has_cookie;
+    bool cookie_enabled;
 
     u_int8_t *commandip;        /* IP address of command host */
     u_int32_t commandiplen;

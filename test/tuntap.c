@@ -20,6 +20,7 @@
 #include <octrl.h>
 #include <octrlmachdep.h>
 #include <pmlmachdep.h>
+#include <utils.h>
 
 /*
  * TAP-based ostrich implementation; pulls packets from interface (default eth2),
@@ -34,7 +35,6 @@
 
 #define DEFAULT_INIF "eth2"
 #define DEBUGLOG(fmt, x...) fprintf(stderr, fmt "\n", ## x);
-#define MIN(x,y) ((x) > (y) ? (y) : (x))
 
 void pmlvm_debug(void);
 

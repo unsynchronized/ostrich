@@ -4,7 +4,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <arpa/inet.h>
+#include <pmlmachdep.h>
+#include <utils.h>
+#include <sys/types.h> 
+#include <sys/socket.h>
 #include <unistd.h>
+#include <err.h>
 #include <string.h>
 #include <stdarg.h>
 #include <time.h>
@@ -69,7 +74,7 @@ struct octrl_settings *octrl_md_retrieve_settings(void) {
     current_settings->cookie = malloc(6);
     if(current_settings->cookie != NULL) {
         memcpy(current_settings->cookie, "cookie", 6);
-        current_settings->has_cookie = 1;
+        current_settings->cookie_enabled = 1;
         current_settings->cookielen = 6;
     }
     current_settings->commandip = malloc(4);
@@ -82,4 +87,46 @@ struct octrl_settings *octrl_md_retrieve_settings(void) {
     current_settings->commandport = 4142;
     current_settings->has_commandport = 1;
     return current_settings;
+}
+
+
+#define MAX_UDP_SZ 1000
+bool octrl_md_send_channel(struct octrl_channel *chan, u_int8_t *const buf, u_int32_t len) {
+    switch(chan->channeltype) {
+        case OCTRL_CHANNEL_UDP4:
+            {
+                int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+                if(fd == -1) {
+                    warn("opening udp socket");
+                    return 0;
+                }
+                struct sockaddr_in sin;
+                sin.sin_family = AF_INET;
+                sin.sin_port = htons(chan->port);
+                memcpy(&sin.sin_addr.s_addr, chan->addr, 4);
+                u_int32_t i = 0;
+                while(i < len) {
+                    const size_t tosend = MIN(len-i, MAX_UDP_SZ);
+                    if(sendto(fd, &buf[i], tosend, 0, (struct sockaddr *)&sin, sizeof(sin)) == -1) {
+                        warn("sending udp packet");
+                        close(fd);
+                        return 0;
+                    }
+                    i += tosend;
+                }
+                close(fd);
+            }
+        default:
+            DLOG("invalid channel type: %x", chan->channeltype);
+            return 0;
+            break;
+    }
+    return 1;
+}
+
+u_int8_t *pml_md_allocbuf(u_int32_t sz) {
+    return calloc(1, sz);
+}
+void pml_md_freebuf(u_int8_t *buf) {
+    free(buf);
 }

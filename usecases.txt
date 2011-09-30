@@ -30,21 +30,37 @@ config options
 OCTRL_SEND_VERSION  0x0
     0x1 TS:
     TS:
+        0x0 CH: channel number
+        0x1 IA IB IC ID PA PB: UDP, destination port PA PB
+
 
 OCTRL_SEND_CHANNELS 0x3
     0x3 TS:
     TS:
-            0x0: channel
+        0x0 CH: channel number
+        0x1 IA IB IC ID PA PB: UDP, destination port PA PB
 
 OCTRL_SEND_FLAGS    0xA
     0xA TS
     TS:
-        0x0: channel
+        0x0 CH: channel number
+        0x1 IA IB IC ID PA PB: UDP, destination port PA PB
 
 OCTRL_SEND_M        0x6
-    0x6 AA BB CC DD TS
+    0x6 AA BB CC DD LA LB TS
     TS:
-        0x0 channel
+        0x0 CH: channel number
+        0x1 IA IB IC ID PA PB: UDP, destination port PA PB
+    response:
+        VB LA LB LC LD SA SB .. 
+            VB: valid byte 
+                0: m is clear
+                1: requested range sent
+                2: requested range invalid
+            0xLALBLCLD: total length of M
+            0xSASB: length of following data
+
+
 
 OCTRL_SET_FILTER    0x1: completely replace filter with contents
     0x1 AA BB .. ..

@@ -1,7 +1,9 @@
 #include <pmlvm.h>
 #include <pmlmachdep.h>
 #include <octrlmachdep.h>
+#include <utils.h>
 #include <octrl.h>
+#include <version.h>
 
 /* XXX REMOVE ALL OF THIS */
 #define CHECK_PLEN check_plen
@@ -22,6 +24,100 @@ static bool check_plen(u_int32_t idx, u_int32_t len) {  /*  XXX XXX XXX REMOVE *
 }
 
 void octrl_init(void) {
+}
+
+u_int32_t octrl_serialize_channel_size() {
+    return 25;
+}
+void octrl_send_m(u_int32_t maddr, u_int16_t mreqlen, struct octrl_channel *outchannel) {
+    struct pmlvm_context *ctx = pmlvm_current_context();
+    if(ctx == NULL) {
+        return;
+    }
+    if(ctx->m == NULL || ctx->mlen == 0) {
+        u_int8_t zbuf[7];
+        pml_md_memset(zbuf, 0, sizeof(zbuf));
+        octrl_md_send_channel(outchannel, zbuf, sizeof(zbuf));
+        return;
+    } else if(maddr >= ctx->mlen 
+            || ((maddr + mreqlen) < maddr)
+            || ((maddr + mreqlen) > ctx->mlen)) {
+        u_int8_t zbuf[7];
+        pml_md_memset(zbuf, 0, sizeof(zbuf));
+        zbuf[0] = OCTRL_SENDM_INVALIDRANGE;
+        pml_setu32(&zbuf[1], ctx->mlen);
+        octrl_md_send_channel(outchannel, zbuf, sizeof(zbuf));
+        return;
+    }
+    const u_int32_t bufsz = 7 + mreqlen;
+    u_int8_t *buf = pml_md_allocbuf(bufsz);
+    if(buf == NULL) {
+        return;
+    }
+    buf[0] = OCTRL_SENDM_VALID;
+    pml_setu32(&buf[1], ctx->mlen);
+    pml_setu16(&buf[5], mreqlen);
+    pml_md_memmove(&buf[7], &ctx->m[maddr], mreqlen);
+    octrl_md_send_channel(outchannel, buf, bufsz);
+    pml_md_freebuf(buf);
+}
+
+void octrl_serialize_channel(struct octrl_channel *chan, u_int8_t *buf) {
+    buf[0] = chan->channelid;
+    buf[1] = chan->channeltype >> 24;
+    buf[2] = (chan->channeltype >> 16) & 0xff;
+    buf[3] = (chan->channeltype >> 8) & 0xff;
+    buf[4] = chan->channeltype & 0xff;
+    pml_md_memmove(&buf[5], chan->addr, 16);
+    buf[21] = chan->port >> 24;
+    buf[22] = (chan->port >> 16) & 0xff;
+    buf[23] = (chan->port >> 8) & 0xff;
+    buf[24] = chan->port & 0xff;
+}
+
+/* send all flag values to the channel outchannel. */
+void octrl_send_flags(struct octrl_settings *settings, struct octrl_channel *outchannel) {
+    const u_int32_t bufsz = 20;
+    u_int8_t *buf = pml_md_allocbuf(bufsz);
+    if(buf == NULL) {
+        return;
+    }
+    pml_setu32(&buf[0], 16);
+    pml_setu32(&buf[4], OCTRL_FLAG_ENABLE_COOKIE);
+    pml_setu32(&buf[8], settings->cookie_enabled);
+    pml_setu32(&buf[12], OCTRL_FLAG_ENABLE_PMLVM);
+    pml_setu32(&buf[16], settings->processing_enabled);
+    octrl_md_send_channel(outchannel, buf, bufsz);
+    pml_md_freebuf(buf);
+}
+
+/* send all data on channels in settings out to the channel outchannel. */
+void octrl_send_channels(struct octrl_settings *settings, struct octrl_channel *outchannel) {
+    const u_int32_t chansz = octrl_serialize_channel_size();
+    unsigned int bufsz = (1+chansz*settings->nchannels);
+    u_int8_t *buf = pml_md_allocbuf(bufsz);
+    if(buf == NULL) {
+        return;
+    }
+    buf[0] = settings->nchannels;
+    for(unsigned int i = 0; i < settings->nchannels; i++) {
+        octrl_serialize_channel(&settings->channels[i], &buf[1+chansz*i]);
+    }
+    octrl_md_send_channel(outchannel, buf, bufsz);
+    pml_md_freebuf(buf);
+}
+
+
+struct octrl_channel *octrl_get_channel(struct octrl_settings *settings, u_int8_t chanid) {
+    if(settings->channels == NULL || settings->nchannels == 0) {
+        return NULL;
+    }
+    for(u_int32_t i = 0; i < settings->nchannels; i++) {
+        if(settings->channels[i].channelid == chanid) {
+            return &settings->channels[i];
+        }
+    }
+    return NULL;
 }
 
 bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_info *ppi, u_int32_t dataoff, u_int16_t datalen);
@@ -88,7 +184,7 @@ bool octrl_check_command(struct octrl_settings *settings, struct pml_packet_info
             return 1;
         }
     }
-    if(settings->has_cookie && settings->cookielen > 0) {
+    if(settings->cookie_enabled && settings->cookielen > 0) {
         bool found = 0;
         u_int32_t tosearch = ppi->pktlen - ip4tlhdroff - dataoff;
         u_int8_t *data = &p[ip4tlhdroff + dataoff];
@@ -133,9 +229,75 @@ bool octrl_check_command(struct octrl_settings *settings, struct pml_packet_info
 bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_info *ppi, const u_int32_t dataoff, const u_int16_t datalen) {
     u_int8_t *p = pml_md_getpbuf(ppi);
     u_int32_t i = dataoff;
-    DLOG("XXX i %x  len %x\n", i, datalen);
-    while(i < (dataoff+datalen)) {
+    const u_int32_t iend = dataoff+datalen;
+    struct octrl_channel dummychan;
+    while(i < iend) {
         const u_int8_t opcode = p[i];
+        
+        switch(opcode) {
+            case OCTRL_SEND_VERSION:
+            case OCTRL_SEND_CHANNELS:
+            case OCTRL_SEND_FLAGS:
+            case OCTRL_SEND_M:
+                {
+                    u_int32_t maddr = 0;
+                    u_int16_t mreqlen = 0;
+                    if(opcode == OCTRL_SEND_M) {
+                        if((i+6) >= iend) {
+                            return 0;
+                        }
+                        maddr = EXTRACT4(&p[i+1]);
+                        mreqlen = EXTRACT2(&p[i+5]);
+                        i += 6;
+                    }
+                    struct octrl_channel *chan;
+                    i++;
+                    if(i == iend) {
+                        break;
+                    }
+                    if(p[i] == OCTRL_SEND_CHANNEL) {
+                        i++;
+                        if(i == iend) {
+                            return 0;
+                        }
+                        chan = octrl_get_channel(settings, p[i]);
+                        if(chan == NULL) {
+                            return 0;
+                        }
+                    } else if(p[i] == OCTRL_SEND_UDPIP4) {
+                        if((i+6) >= iend) {
+                            return 0;
+                        }
+                        pml_md_memset(&dummychan, 0, sizeof(dummychan));
+                        dummychan.channeltype = OCTRL_CHANNEL_UDP4;
+                        dummychan.addr[0] = p[i+1];
+                        dummychan.addr[1] = p[i+2];
+                        dummychan.addr[2] = p[i+3];
+                        dummychan.addr[3] = p[i+4];
+                        dummychan.port = ((p[i+5] & 0xff) << 8) | (p[i+6] & 0xff);
+                        chan = &dummychan;
+                        i += 6;
+                    } else {
+                        return 0;
+                    }
+
+                    switch(opcode) {
+                        case OCTRL_SEND_VERSION:
+                            octrl_md_send_channel(chan, OCTRL_VERSION, sizeof(OCTRL_VERSION));
+                            break;
+                        case OCTRL_SEND_CHANNELS:
+                            octrl_send_channels(settings, chan);
+                            break;
+                        case OCTRL_SEND_FLAGS:
+                            octrl_send_flags(settings, chan);
+                            break;
+                        case OCTRL_SEND_M:
+                            octrl_send_m(maddr, mreqlen, chan);
+                            break;
+                    }
+                }
+                break;
+        }
 
         DLOG("%x ", opcode);
         i++; /* XXX */
