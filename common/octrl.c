@@ -233,6 +233,7 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
     struct octrl_channel dummychan;
     while(i < iend) {
         const u_int8_t opcode = p[i];
+        DLOG("XXXXduh octrl 0x%x  i %d  iend %d", opcode, i, iend);
         
         switch(opcode) {
             case OCTRL_SEND_VERSION:
@@ -283,7 +284,7 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
 
                     switch(opcode) {
                         case OCTRL_SEND_VERSION:
-                            octrl_md_send_channel(chan, OCTRL_VERSION, sizeof(OCTRL_VERSION));
+                            octrl_md_send_channel(chan, OCTRL_VERSION, OCTRL_VERSION_LEN);
                             break;
                         case OCTRL_SEND_CHANNELS:
                             octrl_send_channels(settings, chan);
@@ -297,9 +298,12 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
                     }
                 }
                 break;
+            default:
+                DLOG("invalid octrl command received: 0x%x", opcode);
+                i++;    /* XXX; should return */
+                break;
         }
 
-        DLOG("%x ", opcode);
         i++; /* XXX */
     }
     void exit(int x); exit(1);      /* XXX */

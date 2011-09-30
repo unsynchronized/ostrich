@@ -91,7 +91,7 @@ struct octrl_settings *octrl_md_retrieve_settings(void) {
 
 
 #define MAX_UDP_SZ 1000
-bool octrl_md_send_channel(struct octrl_channel *chan, u_int8_t *const buf, u_int32_t len) {
+bool octrl_md_send_channel(struct octrl_channel *chan, u_int8_t *buf, u_int32_t len) {
     switch(chan->channeltype) {
         case OCTRL_CHANNEL_UDP4:
             {
@@ -101,13 +101,14 @@ bool octrl_md_send_channel(struct octrl_channel *chan, u_int8_t *const buf, u_in
                     return 0;
                 }
                 struct sockaddr_in sin;
+                memset(&sin, 0, sizeof(struct sockaddr_in));
                 sin.sin_family = AF_INET;
                 sin.sin_port = htons(chan->port);
                 memcpy(&sin.sin_addr.s_addr, chan->addr, 4);
                 u_int32_t i = 0;
                 while(i < len) {
                     const size_t tosend = MIN(len-i, MAX_UDP_SZ);
-                    if(sendto(fd, &buf[i], tosend, 0, (struct sockaddr *)&sin, sizeof(sin)) == -1) {
+                    if(sendto(fd, &buf[i], tosend, 0, (struct sockaddr *)&sin, sizeof(struct sockaddr_in)) == -1) {
                         warn("sending udp packet");
                         close(fd);
                         return 0;
@@ -116,6 +117,7 @@ bool octrl_md_send_channel(struct octrl_channel *chan, u_int8_t *const buf, u_in
                 }
                 close(fd);
             }
+            break;
         default:
             DLOG("invalid channel type: %x", chan->channeltype);
             return 0;
