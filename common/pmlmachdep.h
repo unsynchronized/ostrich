@@ -21,8 +21,8 @@ struct pmlvm_context *pml_md_alloc_context(void);
  * be initialized with zeroes. 
  * pml_md_allocbuf returns NULL if the allocations fails.
  */
-u_int8_t *pml_md_allocbuf(u_int32_t sz);
-void pml_md_freebuf(u_int8_t *buf);
+void *pml_md_allocbuf(u_int32_t sz);
+void pml_md_freebuf(void *buf);
 
 /* XXX: doc */
 void pml_md_free_context(struct pmlvm_context *ctx);

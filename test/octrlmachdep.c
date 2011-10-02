@@ -16,6 +16,10 @@
 
 static struct octrl_settings *current_settings = NULL;
 
+void octrl_md_save_settings(void) {
+    /* XXX: unimpl */
+}
+
 struct octrl_settings *octrl_md_retrieve_settings(void) {
     if(current_settings != NULL) {
         return current_settings;
@@ -85,7 +89,6 @@ struct octrl_settings *octrl_md_retrieve_settings(void) {
         current_settings->has_commandip = 1;
     }
     current_settings->commandport = 4142;
-    current_settings->has_commandport = 1;
     return current_settings;
 }
 
@@ -126,9 +129,167 @@ bool octrl_md_send_channel(struct octrl_channel *chan, u_int8_t *buf, u_int32_t 
     return 1;
 }
 
-u_int8_t *pml_md_allocbuf(u_int32_t sz) {
-    return calloc(1, sz);
+void octrl_md_set_filter(u_int8_t *filter, u_int32_t filterlen) {
+    struct pmlvm_context *ctx = pmlvm_current_context();
+    if(current_settings->proglen > 0 && current_settings->program != NULL) {
+        free(current_settings->program);
+        current_settings->proglen = 0;
+        if(ctx != NULL) {
+            ctx->prog = NULL;
+            ctx->proglen = 0;
+        }
+    }
+    if(filterlen > 0) {
+        current_settings->program = malloc(filterlen);
+        if(current_settings->program == NULL) {
+            DLOG("couldn't allocate space for new filter");
+            return;
+        }
+        memcpy(&current_settings->program, filter, filterlen);
+        current_settings->proglen = filterlen;
+        if(ctx != NULL) {
+            ctx->prog = current_settings->program;
+            ctx->proglen = filterlen;
+        }
+    }
+    octrl_md_save_settings();
 }
-void pml_md_freebuf(u_int8_t *buf) {
-    free(buf);
+
+void octrl_md_set_channel(u_int8_t *buffer) {
+    struct octrl_channel *chan = octrl_deserialize_channel(buffer);
+    if(chan == NULL) {
+        DLOG("couldn't allocate space for new chan struct");
+        return;
+    }
+    if(current_settings->nchannels == 0) {
+        current_settings->channels = malloc(sizeof(struct octrl_channel *));
+        if(current_settings->channels == NULL) {
+            DLOG("couldn't allocate space for channels array");
+            pml_md_freebuf(chan);
+            return;
+        }
+        current_settings->channels[0] = chan;
+        current_settings->nchannels = 1;
+        return;
+    }
+    for(u_int32_t i = 0; i < current_settings->nchannels; i++) {
+        if(current_settings->channels[i]->channelid == chan->channelid) {
+            pml_md_freebuf(current_settings->channels[i]);
+            current_settings->channels[i] = chan;
+            return;
+        }
+    }
+    struct octrl_channel **newchan = realloc(current_settings->channels, sizeof(struct octrl_channel)*(current_settings->nchannels + 1));
+    if(newchan == NULL) {
+        DLOG("couldn't allocate more space for channels array");
+        pml_md_freebuf(chan);
+        return;
+    }
+    newchan[current_settings->nchannels] = chan;
+    current_settings->channels = newchan;
+    current_settings->nchannels = current_settings->nchannels + 1;
+}
+void octrl_md_save_m(u_int32_t addr, u_int32_t len) {
+    /* XXX unimpl */
+    octrl_md_save_settings();
+}
+void octrl_md_set_m(u_int32_t addr, u_int8_t *buf, u_int32_t len) {
+    if(addr+len < addr) {
+        return;
+    }
+    struct pmlvm_context *ctx = pmlvm_current_context();
+    if(ctx == NULL) {
+        return;
+    }
+    if(ctx->m == NULL) {
+        ctx->m = pml_md_allocbuf(addr+len);
+        if(ctx->m == NULL) {
+            DLOG("couldn't alloc space for M");
+            return;
+        }
+        ctx->mlen = addr+len;
+    } else {
+        if(ctx->mlen < addr+len) {
+            u_int8_t *newm = realloc(ctx->m, addr+len);
+            if(newm == 0) {
+                DLOG("couldn't realloc M");
+                return;
+            }
+            ctx->mlen = (addr+len);
+            ctx->m = newm;
+        }
+    }
+    pml_md_memmove(&ctx->m[addr], buf, len);
+}
+void octrl_md_set_flag(u_int32_t flag, u_int8_t *val, u_int32_t vlen) {
+    if(flag > OCTRL_FLAG_MAX) {
+        DLOG("invalid flag set: 0x%x", flag);
+        return;
+    }
+    if(vlen != 1) {
+        DLOG("invalid flag value length for binary flags: 0x%x", flag);
+        return;
+    }
+    if(flag == OCTRL_FLAG_ENABLE_COOKIE) {
+        current_settings->cookie_enabled = val[0] == 0 ? 0 : 1;
+    } else if(flag == OCTRL_FLAG_ENABLE_PMLVM) {
+        current_settings->processing_enabled = val[0] == 0 ? 0 : 1;
+    }
+    octrl_md_save_settings();
+}
+void octrl_md_set_cmdip(u_int8_t *newip, u_int32_t iplen) {
+    u_int8_t *newaddr;
+    if(iplen > 0) {
+        newaddr = malloc(iplen);
+        if(newaddr == NULL) {
+            DLOG("couldn't allocate space for command ip");
+            return;
+        }
+        current_settings->has_commandip = 1;
+        pml_md_memmove(newaddr, newip, iplen);
+    } else {
+        newaddr = NULL;
+        current_settings->has_commandip = 0;
+    }
+    if(current_settings->commandip != NULL) {
+        free(current_settings->commandip);
+    }
+    current_settings->commandip = newaddr;
+    current_settings->commandiplen = iplen;
+    octrl_md_save_settings();
+}
+void octrl_md_set_cmdport(u_int16_t newport) {
+    current_settings->commandport = newport;
+    octrl_md_save_settings();
+}
+void octrl_md_set_cookie(u_int8_t *ncookie, u_int32_t clen) {
+    u_int8_t *newcookie;
+    if(clen > 0) {
+        newcookie = malloc(clen);
+        if(newcookie == NULL) {
+            DLOG("couldn't allocate space for cookie");
+            return;
+        }
+        pml_md_memmove(newcookie, ncookie, clen);
+    } else {
+        newcookie = NULL;
+    }
+    if(current_settings->cookie != NULL) {
+        free(current_settings->cookie);
+    }
+    current_settings->cookie = newcookie;
+    current_settings->cookielen = clen;
+    octrl_md_save_settings();
+}
+void octrl_md_clear_m(void) {
+    struct pmlvm_context *ctx = pmlvm_current_context();
+    if(ctx == NULL) {
+        return;
+    }
+    ctx->mlen = 0;
+    if(ctx->m == NULL) {
+        return;
+    }
+    free(ctx->m);
+    ctx->m = NULL;
 }

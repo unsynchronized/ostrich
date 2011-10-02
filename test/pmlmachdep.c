@@ -139,3 +139,11 @@ bool pml_md_delete_p(u_int32_t nbytes, u_int32_t startoff, struct pml_packet_inf
     return 1;
 }
 
+void *pml_md_allocbuf(u_int32_t sz) {
+    return calloc(1, sz);
+}
+void pml_md_freebuf(void *buf) {
+    free(buf);
+}
+
+

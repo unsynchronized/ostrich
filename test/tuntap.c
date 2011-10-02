@@ -249,10 +249,14 @@ int main(int argc, char *argv[]) {
         if(pret == 0 || ppi.pktlen == 0) {
             continue;
         }
-        pret = pmlvm_process(&ppi);
-        pmlvm_debug();
-        if(pret == 0 || ppi.pktlen == 0) {
-            continue;
+        if(settings->processing_enabled) {
+            pret = pmlvm_process(&ppi);
+            pmlvm_debug();
+            if(pret == 0 || ppi.pktlen == 0) {
+                continue;
+            }
+        } else {
+            DLOG("(processing disabled; skipping VM");
         }
         memmove(&allbuf[4], ppi.pkt, ppi.pktlen);
 

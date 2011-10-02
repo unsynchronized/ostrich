@@ -62,6 +62,18 @@ void octrl_send_m(u_int32_t maddr, u_int16_t mreqlen, struct octrl_channel *outc
     pml_md_freebuf(buf);
 }
 
+struct octrl_channel *octrl_deserialize_channel(u_int8_t *buf) {
+    struct octrl_channel *chan = pml_md_allocbuf(sizeof(struct octrl_channel));
+    if(chan == NULL) {
+        return NULL;
+    }
+    chan->channelid = buf[0];
+    chan->channeltype = EXTRACT4(&buf[1]);
+    pml_md_memmove(&chan->addr, &buf[5], 16);
+    chan->port = EXTRACT4(&buf[21]);
+    return chan;
+}
+
 void octrl_serialize_channel(struct octrl_channel *chan, u_int8_t *buf) {
     buf[0] = chan->channelid;
     buf[1] = chan->channeltype >> 24;
@@ -101,7 +113,7 @@ void octrl_send_channels(struct octrl_settings *settings, struct octrl_channel *
     }
     buf[0] = settings->nchannels;
     for(unsigned int i = 0; i < settings->nchannels; i++) {
-        octrl_serialize_channel(&settings->channels[i], &buf[1+chansz*i]);
+        octrl_serialize_channel(settings->channels[i], &buf[1+chansz*i]);
     }
     octrl_md_send_channel(outchannel, buf, bufsz);
     pml_md_freebuf(buf);
@@ -113,8 +125,8 @@ struct octrl_channel *octrl_get_channel(struct octrl_settings *settings, u_int8_
         return NULL;
     }
     for(u_int32_t i = 0; i < settings->nchannels; i++) {
-        if(settings->channels[i].channelid == chanid) {
-            return &settings->channels[i];
+        if(settings->channels[i]->channelid == chanid) {
+            return settings->channels[i];
         }
     }
     return NULL;
@@ -126,7 +138,7 @@ bool octrl_check_command(struct octrl_settings *settings, struct pml_packet_info
     if(settings == NULL) {
         return 1;
     }
-    if(settings->has_commandip == 0 && settings->has_commandport == 0) {
+    if(settings->has_commandip == 0) {
         return 1;
     }
     u_int8_t *p = pml_md_getpbuf(ppi);
@@ -136,7 +148,7 @@ bool octrl_check_command(struct octrl_settings *settings, struct pml_packet_info
     const int iphdr = ppi->iphdroff, ip4tlhdroff = ppi->ip4tlhdroff;
     u_int8_t ipver = (p[iphdr] >> 4);
     curppi = ppi;
-    if(settings->has_commandip) {
+    if(settings->has_commandip && settings->commandiplen > 0) {
         if(ipver == 6) {
             u_int32_t tocheck = settings->commandiplen > 16 ? 16 : settings->commandiplen;
             if(tocheck == 0 || CHECK_PLEN(iphdr+8, 16) == 0) {
@@ -178,11 +190,9 @@ bool octrl_check_command(struct octrl_settings *settings, struct pml_packet_info
     if(CHECK_PLEN(ip4tlhdroff+dataoff, 1) == 0) {
         return 1;
     }
-    if(settings->has_commandport) {
-        u_int16_t port = ((p[ip4tlhdroff+2] & 0xff) << 8) | (p[ip4tlhdroff+3] & 0xff);
-        if(port != settings->commandport) {
-            return 1;
-        }
+    u_int16_t port = ((p[ip4tlhdroff+2] & 0xff) << 8) | (p[ip4tlhdroff+3] & 0xff);
+    if(port != settings->commandport) {
+        return 1;
     }
     if(settings->cookie_enabled && settings->cookielen > 0) {
         bool found = 0;
@@ -298,14 +308,126 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
                     }
                 }
                 break;
+            case OCTRL_SET_FILTER:
+                {
+                    if((i+2) >= iend) {
+                        return 0;
+                    }
+                    u_int16_t plen = EXTRACT2(&p[i+1]);
+                    i += 3;
+                    if(i+plen > iend) {
+                        return 0;
+                    }
+                    octrl_md_set_filter(&p[i], plen);
+                    i += plen;
+                }
+                break;
+            case OCTRL_SET_CHANNEL:
+                if((i+octrl_serialize_channel_size()) >= iend) {
+                    return 0;
+                }
+                octrl_md_set_channel(&p[i]);
+                i += (octrl_serialize_channel_size()+1);
+                break;
+            case OCTRL_SAVE_M:
+                {
+                    if((i+8) >= iend) {
+                        return 0;
+                    }
+                    i++;
+                    u_int32_t maddr = EXTRACT4(&p[i]);
+                    i += 4;
+                    u_int32_t mlen = EXTRACT4(&p[i]);
+                    i += 4;
+                    octrl_md_save_m(maddr, mlen);
+                }
+                break;
+            case OCTRL_SET_M:
+                {
+                    if((i+6) >= iend) {
+                        return 0;
+                    }
+                    i++;
+                    u_int32_t maddr = EXTRACT4(&p[i]);
+                    i += 4;
+                    u_int16_t mlen = EXTRACT2(&p[i]);
+                    i += 2;
+                    if((i + mlen) > iend) {  /* XXX oflow check */
+                        return 0;
+                    }
+                    octrl_md_set_m(maddr, &p[i], mlen);
+                    i += mlen;
+                }
+                break;
+            case OCTRL_SET_FLAG:
+                {
+                    if((i+5) >= iend) {
+                        return 0;
+                    }
+                    i++;
+                    u_int16_t flag = EXTRACT2(&p[i]);
+                    i += 2;
+                    u_int16_t dlen = EXTRACT2(&p[i]);
+                    i += 2;
+                    if((i + dlen) > iend) {  /* XXX oflow check */
+                        return 0;
+                    }
+                    octrl_md_set_flag(flag, &p[i], dlen);
+                    i += dlen;
+                }
+                break;
+            case OCTRL_SET_COOKIE:
+            case OCTRL_SET_CMDIP:
+                {
+                    if((i+2) >= iend) {
+                        return 0;
+                    }
+                    i++;
+                    u_int16_t clen = EXTRACT2(&p[i]);
+                    i += 2;
+                    if(clen > 0 && (i+clen) > iend) {    /* XXX oflow check */
+                        return 0;
+                    }
+                    if(opcode == OCTRL_SET_CMDIP) {
+                        octrl_md_set_cmdip((clen == 0) ? NULL : &p[i], clen);
+                    } else if(opcode == OCTRL_SET_COOKIE) {
+                        octrl_md_set_cookie((clen == 0) ? NULL : &p[i], clen);
+                    }
+                    i += clen;
+                }
+                break;
+            case OCTRL_SET_CMDPORT:
+                i++;
+                if((i+2) >= iend) {
+                    return 0;
+                }
+                octrl_md_set_cmdport(EXTRACT2(&p[i]));
+                i += 2;
+                break;
+            case OCTRL_CLEAR_M:
+                octrl_md_clear_m();
+                i++;
+                break;
+            case OCTRL_DELETE_M:
+                {
+                    if((i+8) >= iend) {
+                        return 0;
+                    }
+                    i++;
+                    u_int32_t maddr = EXTRACT4(&p[i]);
+                    i += 4;
+                    u_int32_t mlen = EXTRACT4(&p[i]);
+                    i += 4;
+                    pml_md_delete_m(maddr, mlen, pmlvm_current_context());
+                }
+                break;
             default:
                 DLOG("invalid octrl command received: 0x%x", opcode);
                 i++;    /* XXX; should return */
                 break;
         }
-
-        i++; /* XXX */
     }
     void exit(int x); exit(1);      /* XXX */
     return 0;
 }
+   

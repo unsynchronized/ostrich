@@ -1,6 +1,7 @@
 - command channel: secret only, IPfrag/UDP/ICMP
 - check to make sure result codes are always being set
 - check all uses of int32_t (signd ints) are okay
+- check command ip for all zeroes (e.g. after OCTRL_SET_CMDIP to 0); ALSO COOKIE
 - add support for other ETH_P_* types (assert on unknown, monitor everything)
 - fix insert/delete on P in test/pmlmachdep; can't realloc/malloc, they're stack-allocated
 - add header offsets to test/pmlmachdep

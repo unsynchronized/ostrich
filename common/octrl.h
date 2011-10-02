@@ -18,7 +18,7 @@ typedef struct octrl_channel {
 #define OCTRL_SEND_VERSION  0x0
 #define OCTRL_SET_FILTER    0x1
 #define OCTRL_SEND_CHANNELS 0x3
-#define OCTRL_ADD_CHANNEL   0x4
+#define OCTRL_SET_CHANNEL   0x4
 #define OCTRL_DEL_CHANNEL   0x5
 #define OCTRL_SEND_M        0x6
 #define OCTRL_SET_M         0x7
@@ -49,7 +49,6 @@ struct octrl_settings {
     bool has_commandip;
 
     u_int16_t commandport;      /* port number commands must be addressed to */
-    bool has_commandport;       
 
     u_int8_t *program;          /* initial state of program at boot */
     u_int32_t proglen;
@@ -63,7 +62,7 @@ struct octrl_settings {
     bool drop_cmd_packets;      /* if 1, drop all command packets after processing */
     
     u_int8_t nchannels;
-    octrl_channel *channels;
+    octrl_channel **channels;
 };
 
 /* octrl_init: call at startup to load settings (or initialize to defaults) */
@@ -76,5 +75,21 @@ void octrl_init(void);
  * passed on to the VM stage
  */
 bool octrl_check_command(struct octrl_settings *settings, struct pml_packet_info *ppi);
+
+/* octrl_deserialize_channel: deserialize a newly-allocated (with pml_md_allocbuf()) 
+ * channel from the data inside buf.
+ * returns NULL if the allocation fails.
+ */
+struct octrl_channel *octrl_deserialize_channel(u_int8_t *buf);
+
+/* octrl_serialize_channel: serialize the channel data and put the data in buf.  buf
+ * must have octrl_serialize_channel_size() bytes available.
+ */
+void octrl_serialize_channel(struct octrl_channel *chan, u_int8_t *buf);
+
+/* octrl_serialize_channel_size: returns the number of bytes necessary to serialize 
+ * a struct octrl_channel.
+ */
+u_int32_t octrl_serialize_channel_size(void);
 
 #endif /* OCTRL_H */
