@@ -238,6 +238,15 @@ int main(int argc, char *argv[]) {
                     }
                     done = 1;
                     break;
+                case ETH_P_IPV6:
+                    ppi.ethhdroff = 0;
+                    ppi.flags.has_ethhdroff = 1;
+                    ppi.iphdroff = ethoff + 14;
+                    ppi.flags.has_iphdroff = 1;
+                    ppi.tlproto = TLPROTO_80213;
+                    /* XXX: no tlhdr for ipv6 yet) */
+                    done = 1;
+                    break;
                 default:
                     DLOG("XXX DUH"); exit(1);
                     ppi.tlproto = TLPROTO_UNKNOWN;
