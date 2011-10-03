@@ -58,6 +58,12 @@ class DestinationField(Field):
     def __init__(self, name, default):
         Field.__init__(self, name, default)
 
+class DEL_CHANNEL(Packet):
+    fields_desc = [
+        XByteField("command", DEL_CHANNEL),
+        XByteField("id", 0),
+        ]
+
 class SEND_M_RESPONSE(Packet):
     fields_desc = [
         ByteEnumField("result", 0, {0: "m_clear", 1:"success", 2:"invalid_range"}),
@@ -66,13 +72,29 @@ class SEND_M_RESPONSE(Packet):
         StrLenField("data", None, length_from=lambda pkt: pkt.datalen)
         ]
 
+class OCtrlChannel(Packet):
+    fields_desc = [
+        XByteField("id", 0),
+        IntEnumField("type", OCTRL_CHANNEL_UDP4, {OCTRL_CHANNEL_UDP4: "OCTRL_CHANNEL_UDP4"}),
+        StrFixedLenField("addr", '', 16),
+        IntField("port", 0)
+    ]
+    def extract_padding(self, p):
+        return "",p
+
+class SEND_CHANNELS_RESPONSE(Packet):
+    fields_desc = [
+        FieldLenField("chancount", None, count_of="channels", fmt="B"),
+        PacketListField("channels", None, OCtrlChannel, count_from=lambda pkt:pkt.chancount)
+        ]
+
 class SET_CHANNEL(Packet):
     fields_desc = [
         XByteField("command", SET_CHANNEL),
         XByteField("id", 0),
         IntEnumField("type", OCTRL_CHANNEL_UDP4, {OCTRL_CHANNEL_UDP4: "OCTRL_CHANNEL_UDP4"}),
         StrFixedLenField("addr", '', 16),
-        IntEnum("port", 0)
+        IntField("port", 0)
         ]
 
 class SET_FILTER(Packet):
@@ -145,9 +167,10 @@ def ocsr(pkt, timeout=GLOBAL_TIMEOUT, verbose=2, filter=None):
         p.join()
         return outarr[0]
 
-
-def getversion(dstip, cookie, cmdip, cmdport, localip, port=4445):
-    res = ocsr(IP(src=cmdip,dst=dstip)/UDP(sport=port,dport=cmdport)/OCtrl(cookie)/SEND_VERSION(dst=(localip,port)), verbose=2, timeout=GLOBAL_TIMEOUT, filter="udp and dst port %u" % port)
+def getversion(dstip, cookie, cmdip, cmdport, dst, port=4445):
+    if isinstance(dst, tuple):
+        port = dst[1]
+    res = ocsr(IP(src=cmdip,dst=dstip)/UDP(sport=port,dport=cmdport)/OCtrl(cookie)/SEND_VERSION(dst=dst), verbose=2, timeout=GLOBAL_TIMEOUT, filter="udp and dst port %u" % port)
     if isinstance(res, tuple):
         res = reduce(lambda x,y: x+y, res)
     if res is None or len(res) == 0:
@@ -178,25 +201,46 @@ def getm(dstip, cookie, cmdip, cmdport, localip, maddr, mlen, port=4445):
         return None
     return str(res[0][Raw])
 
-def setchan(dstip, cookie, cmdip, cmdport, localip, chanid, chantype, chanip, chanport, port=4445):
-    res = ocsr(IP(src=cmdip,dst=dstip)/UDP(sport=port,dport=cmdport)/OCtrl(cookie)/SEND_M(maddr=maddr, len=mlen, dst=(localip,port)), verbose=2, timeout=GLOBAL_TIMEOUT, filter="udp and dst port %u" % port)
-    if isinstance(res, tuple):
-        res = reduce(lambda x,y: x+y, res)
-    if res is None or len(res) == 0:
-        return None
-    return str(res[0][Raw])
 
-
-def setfilter(dstip, cookie, cmdip, cmdport, localip, filter, port=4445):
+def setfilter(dstip, cookie, cmdip, cmdport, filter, port=4445):
     p = IP(src=cmdip,dst=dstip)/UDP(sport=port,dport=cmdport)/OCtrl(cookie)/SET_FILTER(filter=filter)
     send(p)
 
+def setchannel(dstip, cookie, cmdip, cmdport, chanid, chantype, chanip, chanport, port=4445):
+    p = IP(src=cmdip,dst=dstip)/UDP(sport=port,dport=cmdport)/OCtrl(cookie)/SET_CHANNEL(id=chanid, type=chantype, addr=inet_aton(chanip), port=chanport)
+    send(p)
 
-setfilter("192.168.1.1", "cookie", "192.168.0.5", 4142, "192.168.1.1", "\xFF\xFF\xFF\xFF\xFF\xFF")
+def delchannel(dstip, cookie, cmdip, cmdport, chanid, port=4445):
+    p = IP(src=cmdip,dst=dstip)/UDP(sport=port,dport=cmdport)/OCtrl(cookie)/DEL_CHANNEL(id=chanid)
+    send(p)
 
 
-ver = getversion("192.168.1.1", "cookie", "192.168.0.5", 4142, "192.168.1.1")
+chans = getchannels("192.168.1.1", "cookie", "192.168.0.5", 4142, "192.168.1.1")
+print "chans: " 
+ch = SEND_CHANNELS_RESPONSE(chans)
+ch.display()
+
+setchannel("192.168.1.1", "cookie", "192.168.0.5", 4142, 1, OCTRL_CHANNEL_UDP4, "192.168.1.1", 4446)
+setchannel("192.168.1.1", "cookie", "192.168.0.5", 4142, 4, OCTRL_CHANNEL_UDP4, "192.168.1.1", 4447)
+
+ver = getversion("192.168.1.1", "cookie", "192.168.0.5", 4142, 1, port=4446)
 print "version: " + str(ver)
+
+chans = getchannels("192.168.1.1", "cookie", "192.168.0.5", 4142, "192.168.1.1")
+print "chans: " 
+ch = SEND_CHANNELS_RESPONSE(chans)
+ch.display()
+
+delchannel("192.168.1.1", "cookie", "192.168.0.5", 4142, 1)
+
+chans = getchannels("192.168.1.1", "cookie", "192.168.0.5", 4142, "192.168.1.1")
+print "chans: " 
+ch = SEND_CHANNELS_RESPONSE(chans)
+ch.display()
+exit(1)
+
+setfilter("192.168.1.1", "cookie", "192.168.0.5", 4142, "\xFF\xFF\xFF\xFF\xFF\xFF")
+
 
 m = getm("192.168.1.1", "cookie", "192.168.0.5", 4142, "192.168.1.1", 0, 4)
 if m is not None:
@@ -210,11 +254,6 @@ else:
 flags = getflags("192.168.1.1", "cookie", "192.168.0.5", 4142, "192.168.1.1")
 print "flags: " 
 hexdump(flags)
-
-chans = getchannels("192.168.1.1", "cookie", "192.168.0.5", 4142, "192.168.1.1")
-print "chans: " 
-hexdump(chans)
-
 
 #  IP(src="192.168.0.5",dst="192.168.1.1")/UDP(sport=4445,dport=4142)/OCtrl("cookie")/SEND_M(maddr=0x11223344, len=0x5566, dst=("192.168.1.1",4142))
 

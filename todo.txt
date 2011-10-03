@@ -3,8 +3,10 @@
 - max instruction count
 - check to make sure result codes are always being set
 - check all uses of int32_t (signed ints) are okay
+- use a PacketField for SET_CHANNEL
 - fix insert/delete on P in test/pmlmachdep; can't realloc/malloc, they're stack-allocated
 - add header offsets to test/pmlmachdep
+- convert get*() functions to use either channels or (ip,port) tuples as destinations (see getversion)
 - check for mem leaks
 - should we fix byte order on vlan tags?
 - check for int overflows

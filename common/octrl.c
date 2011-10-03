@@ -76,7 +76,7 @@ struct octrl_channel *octrl_deserialize_channel(u_int8_t *buf) {
 
 void octrl_serialize_channel(struct octrl_channel *chan, u_int8_t *buf) {
     buf[0] = chan->channelid;
-    buf[1] = chan->channeltype >> 24;
+    buf[1] = (chan->channeltype >> 24 & 0xff);
     buf[2] = (chan->channeltype >> 16) & 0xff;
     buf[3] = (chan->channeltype >> 8) & 0xff;
     buf[4] = chan->channeltype & 0xff;
@@ -274,7 +274,6 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
                         chan = octrl_get_channel(settings, p[i]);
                         if(chan == NULL) {
                             DLOG("target channel not found");
-                    void exit(int); exit(1);    /* XXX */
                             return 0;
                         }
                     } else if(p[i] == OCTRL_SEND_UDPIP4) {
@@ -329,8 +328,17 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
                 if((i+octrl_serialize_channel_size()) >= iend) {
                     return 0;
                 }
+                i++;
                 octrl_md_set_channel(&p[i]);
-                i += (octrl_serialize_channel_size()+1);
+                i += (octrl_serialize_channel_size());
+                break;
+            case OCTRL_DEL_CHANNEL:
+                if((i+1) >= iend) {
+                    return 0;
+                }
+                i++;
+                octrl_md_del_channel(p[i]);
+                i++;
                 break;
             case OCTRL_SAVE_M:
                 {

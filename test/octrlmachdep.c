@@ -156,6 +156,30 @@ void octrl_md_set_filter(u_int8_t *filter, u_int32_t filterlen) {
     octrl_md_save_settings();
 }
 
+void octrl_md_del_channel(u_int8_t id) {
+    if(current_settings->nchannels == 0) {
+        return;
+    }
+    for(u_int32_t i = 0; i < current_settings->nchannels; i++) {
+        if(current_settings->channels[i]->channelid == id){
+            pml_md_freebuf(current_settings->channels[i]);
+            current_settings->channels[i] = NULL;
+            for(u_int32_t j = i; j < (current_settings->nchannels-1); j++) {
+                current_settings->channels[j] = current_settings->channels[j+1];
+            }
+            /* XXX: don't bother reallocing here, but you probably should in a 
+             * real embedded environment.  here we only free if they're all gone
+             */
+            current_settings->nchannels = current_settings->nchannels - 1;
+            if(current_settings->nchannels == 0) {
+                free(current_settings->channels);
+                current_settings->channels = NULL;
+            }
+            return;
+        }
+    }
+}
+
 void octrl_md_set_channel(u_int8_t *buffer) {
     struct octrl_channel *chan = octrl_deserialize_channel(buffer);
     if(chan == NULL) {

@@ -25,6 +25,8 @@ void octrl_md_set_filter(u_int8_t *filter, u_int32_t filterlen);
  */
 void octrl_md_set_channel(u_int8_t *buffer);
 
+/* octrl_md_del_channel: delete the channel with the given id, if it exists. */
+void octrl_md_del_channel(u_int8_t id);
 /* octrl_md_save_m: replace the contents of persistent-M with M[addr], length len. if
  * len is 0, then clear the contents of persistent-M.
  */
