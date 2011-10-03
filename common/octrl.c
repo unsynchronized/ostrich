@@ -243,7 +243,7 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
     struct octrl_channel dummychan;
     while(i < iend) {
         const u_int8_t opcode = p[i];
-        DLOG("XXXXduh octrl 0x%x  i %d  iend %d", opcode, i, iend);
+        DLOG("XXX OC: octrl 0x%x  i %d  iend %d", opcode, i, iend);
         
         switch(opcode) {
             case OCTRL_SEND_VERSION:
@@ -273,10 +273,13 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
                         }
                         chan = octrl_get_channel(settings, p[i]);
                         if(chan == NULL) {
+                            DLOG("target channel not found");
+                    void exit(int); exit(1);    /* XXX */
                             return 0;
                         }
                     } else if(p[i] == OCTRL_SEND_UDPIP4) {
                         if((i+6) >= iend) {
+                            DLOG("SEND_UDPIP4 but packet too short");
                             return 0;
                         }
                         pml_md_memset(&dummychan, 0, sizeof(dummychan));
@@ -423,12 +426,12 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
                 break;
             default:
                 DLOG("invalid octrl command received: 0x%x", opcode);
+                void exit(int); exit(1);    /* XXX */
                 i++;    /* XXX; should return */
                 break;
         }
     }
     void exit(int x); if(i != iend) {DLOG("i 0x%x", i); exit(1);} /* XXX */
-    //exit(1);      /* XXX */
     return 0;
 }
    

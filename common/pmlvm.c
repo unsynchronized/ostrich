@@ -18,7 +18,9 @@ static void pml_sum_phdr4(u_int8_t *pkt, u_int16_t len, u_int32_t *sum);
 static void pml_sum_comp(u_int8_t *buf, u_int16_t len, u_int32_t *sum);
 static u_int16_t pml_sum_finish(u_int32_t sum);
 
-/* XXX: doc */
+/* pmlvm_current_context: return a valid pointer to the current PML context used by
+ * the VM, if there is one; or NULL if there isn't.
+ */
 struct pmlvm_context *pmlvm_current_context(void) {
     return ctx;
 }
@@ -1226,7 +1228,7 @@ bool pmlvm_process(struct pml_packet_info *pinfo) {
                 }
                 break;
             default:
-                assert(0);  // XXX nothing
+                DLOG("invalid PML instruction: 0x%x", opcode);
                 stopflag = 1;
                 break;
         }

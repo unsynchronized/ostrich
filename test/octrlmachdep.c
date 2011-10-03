@@ -66,6 +66,7 @@ struct octrl_settings *octrl_md_retrieve_settings(void) {
 
 /*     */
     };
+    current_settings->processing_enabled = 1;
     current_settings->savedmlen = 0;
     current_settings->savedm = NULL;
     current_settings->program = malloc(sizeof(XXXprog));
@@ -145,7 +146,7 @@ void octrl_md_set_filter(u_int8_t *filter, u_int32_t filterlen) {
             DLOG("couldn't allocate space for new filter");
             return;
         }
-        memcpy(&current_settings->program, filter, filterlen);
+        memcpy(current_settings->program, filter, filterlen);
         current_settings->proglen = filterlen;
         if(ctx != NULL) {
             ctx->prog = current_settings->program;
