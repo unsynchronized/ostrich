@@ -28,17 +28,14 @@ config options
         - available data for 
 
 OCTRL_SEND_VERSION  0x0
-    0x1 TS:
-    TS:
-        0x0 CH: channel number
-        0x1 IA IB IC ID PA PB: UDP, destination port PA PB
+    0x0 0x0 CH: channel number
+    0x0 0x1 IA IB IC ID PA PB: UDP, destination port PA PB
+
 
 
 OCTRL_SEND_CHANNELS 0x3
-    0x3 TS:
-    TS:
-        0x0 CH: channel number
-        0x1 IA IB IC ID PA PB: UDP, destination port PA PB
+    0x3 0x0 CH: channel number
+    0x3 0x1 IA IB IC ID PA PB: UDP, destination port PA PB
 
 OCTRL_SEND_FLAGS    0xA
     0xA TS

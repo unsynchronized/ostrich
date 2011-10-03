@@ -82,7 +82,7 @@ struct octrl_settings *octrl_md_retrieve_settings(void) {
         current_settings->cookielen = 6;
     }
     current_settings->commandip = malloc(4);
-    u_int32_t inaddr = inet_addr("192.168.0.4");
+    u_int32_t inaddr = inet_addr("192.168.0.5");
     if(current_settings->commandip != NULL) {
         memcpy(current_settings->commandip, &inaddr, 4);
         current_settings->commandiplen = 4;

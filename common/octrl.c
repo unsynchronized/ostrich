@@ -287,7 +287,7 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
                         dummychan.addr[3] = p[i+4];
                         dummychan.port = ((p[i+5] & 0xff) << 8) | (p[i+6] & 0xff);
                         chan = &dummychan;
-                        i += 6;
+                        i += 7;
                     } else {
                         return 0;
                     }
@@ -427,7 +427,8 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
                 break;
         }
     }
-    void exit(int x); exit(1);      /* XXX */
+    void exit(int x); if(i != iend) {DLOG("i 0x%x", i); exit(1);} /* XXX */
+    //exit(1);      /* XXX */
     return 0;
 }
    

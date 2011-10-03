@@ -1,15 +1,13 @@
-- command channel: secret only, IPfrag/UDP/ICMP
+- client: 
+- exec
+- max instruction count
 - check to make sure result codes are always being set
-- check all uses of int32_t (signd ints) are okay
-- check command ip for all zeroes (e.g. after OCTRL_SET_CMDIP to 0); ALSO COOKIE
-- add support for other ETH_P_* types (assert on unknown, monitor everything)
+- check all uses of int32_t (signed ints) are okay
 - fix insert/delete on P in test/pmlmachdep; can't realloc/malloc, they're stack-allocated
 - add header offsets to test/pmlmachdep
 - check for mem leaks
 - should we fix byte order on vlan tags?
 - check for int overflows
-- max instruction count
-- exec?
 - test find
 - test movs header offsets
 - test divert

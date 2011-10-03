@@ -245,10 +245,21 @@ int main(int argc, char *argv[]) {
                     ppi.flags.has_iphdroff = 1;
                     ppi.tlproto = TLPROTO_80213;
                     /* XXX: no tlhdr for ipv6 yet) */
+                    ppi.ip4tlhdroff = 0;
+                    ppi.flags.has_ip4tlhdroff = 0;
+                    done = 1;
+                    break;
+                case ETH_P_802_2:
+                    ppi.ethhdroff = 0;
+                    ppi.flags.has_ethhdroff = 1;
+                    ppi.iphdroff = 0;
+                    ppi.flags.has_iphdroff= 0;
+                    ppi.ip4tlhdroff = 0;
+                    ppi.flags.has_ip4tlhdroff = 0;
                     done = 1;
                     break;
                 default:
-                    DLOG("XXX DUH"); exit(1);
+                    DLOG("XXX invalid ethertype 0x%x", curproto); exit(1);
                     ppi.tlproto = TLPROTO_UNKNOWN;
                     done = 1;
                     break;
