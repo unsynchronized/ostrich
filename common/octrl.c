@@ -366,6 +366,7 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
                     if((i + mlen) > iend) {  /* XXX oflow check */
                         return 0;
                     }
+                    DLOG("XXX maddr %x  mlen %x", maddr, mlen & 0xffff);
                     octrl_md_set_m(maddr, &p[i], mlen);
                     i += mlen;
                 }
@@ -409,10 +410,13 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
                 break;
             case OCTRL_SET_CMDPORT:
                 i++;
-                if((i+2) >= iend) {
+                DLOG("XXX i %d  iend %d", i, iend);
+                if((i+2) > iend) {
+                    DLOG("XXX ZPOO");
                     return 0;
                 }
-                octrl_md_set_cmdport(EXTRACT2(&p[i]));
+                const u_int16_t newport = EXTRACT2(&p[i]);
+                octrl_md_set_cmdport(newport);
                 i += 2;
                 break;
             case OCTRL_CLEAR_M:
@@ -429,7 +433,7 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
                     i += 4;
                     u_int32_t mlen = EXTRACT4(&p[i]);
                     i += 4;
-                    pml_md_delete_m(maddr, mlen, pmlvm_current_context());
+                    pml_md_delete_m(mlen, maddr, pmlvm_current_context());
                 }
                 break;
             default:

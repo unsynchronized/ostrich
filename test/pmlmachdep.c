@@ -80,6 +80,7 @@ bool pml_md_insert_m(u_int32_t nbytes, u_int32_t startoff, struct pmlvm_context 
 }
 
 bool pml_md_delete_m(u_int32_t nbytes, u_int32_t startoff, struct pmlvm_context *context) {
+    DLOG("XXX nbytes %x  offset %x", nbytes, startoff);
     if(context->mlen == 0) {
         DLOG("tried to DELETE from M when M was empty");
         return 0;
@@ -91,7 +92,7 @@ bool pml_md_delete_m(u_int32_t nbytes, u_int32_t startoff, struct pmlvm_context 
         context->mlen = 0;
         return 1;
     }
-    memmove(&context->m[startoff], &context->m[startoff+nbytes], nbytes);
+    memmove(&context->m[startoff], &context->m[startoff+nbytes], newsz-startoff);   // XXX: kosher?
     context->mlen = newsz;
     return 1;
 }

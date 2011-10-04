@@ -9,9 +9,11 @@
 - convert get*() functions to use either channels or (ip,port) tuples as destinations (see getversion)
 - check for mem leaks
 - should we fix byte order on vlan tags?
+- name field for scapy Packets
 - check for int overflows
 - test find
 - test movs header offsets
 - test divert
+- is enable_cookie really necessary?
 - test newprog
 - implement tuntap PML_CHANNEL_IP

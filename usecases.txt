@@ -72,8 +72,8 @@ OCTRL_DEL_CHANNEL   0x5
 
 OCTRL_SET_M         0x7
     0x6 MA MB MC MD DA DB ..
-    0xDADB: length to insert
     0xMAMBMCMD: position to insert at
+    0xDADB: length to insert
 
 OCTRL_SAVE_M        0x8
     0x8 OA OB OC OD LA LB LC LD

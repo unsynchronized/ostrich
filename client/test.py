@@ -10,6 +10,7 @@ from scapy.all import *
 logging.getLogger("scapy").setLevel(1)
 
 conf.use_pcap = True
+# OCTRL top-level commands.
 SEND_VERSION  = 0x0
 SET_FILTER    = 0x1
 SEND_CHANNELS = 0x3
@@ -26,10 +27,16 @@ SET_CMDPORT   = 0xD
 CLEAR_M       = 0xE
 DELETE_M      = 0xF
 
+# Destination type enum values.
 OCTRL_SEND_CHANNEL = 0
 OCTRL_SEND_UDPIP4  = 1
 
+# Channel types.
 OCTRL_CHANNEL_UDP4 = 0
+
+# Currently-defined flags.
+OCTRL_FLAG_ENABLE_COOKIE = 0
+OCTRL_FLAG_ENABLE_PMLVM  = 1
 
 class OCtrlCommand(Packet):
     fields_desc = [
@@ -58,13 +65,81 @@ class DestinationField(Field):
     def __init__(self, name, default):
         Field.__init__(self, name, default)
 
+class CLEAR_M(Packet):
+    name = "CLEAR_M"
+    fields_desc = [
+        XByteField("command", CLEAR_M)
+    ]
+
+class DELETE_M(Packet):
+    name = "DELETE_M"
+    fields_desc = [
+        XByteField("command", DELETE_M),
+        IntField("maddr", 0),
+        IntField("len", 0)
+    ]
+
+class SET_CMDPORT(Packet):
+    name = "SET_CMDPORT"
+    fields_desc = [
+        XByteField("command", SET_CMDPORT),
+        ShortField("port", 0),
+    ]
+
+class SET_CMDIP(Packet):
+    name = "SET_CMDIP"
+    fields_desc = [
+        XByteField("command", SET_CMDIP),
+        FieldLenField("iplen", 0, fmt="H", length_of="ip"),
+        StrLenField("ip", "", "iple")
+    ]
+
+class SET_COOKIE(Packet):
+    name = "SET_COOKIE"
+    fields_desc = [
+        XByteField("command", SET_COOKIE),
+        FieldLenField("cookielen", 0, fmt="H", length_of="cookie"),
+        StrLenField("cookie", "", "cookielen")
+    ]
+
+class SET_FLAG(Packet):
+    name = "SET_FLAG"
+    fields_desc = [
+        XByteField("command", SET_FLAG),
+        ShortEnumField("flag", OCTRL_FLAG_ENABLE_COOKIE, 
+            { OCTRL_FLAG_ENABLE_COOKIE: "OCTRL_FLAG_ENABLE_COOKIE",
+              OCTRL_FLAG_ENABLE_PMLVM: "OCTRL_FLAG_ENABLE_PMLVM"
+            }),
+        FieldLenField("datalen", 0, fmt="H", length_of="data"),
+        StrLenField("data", "", "datalen")
+    ]
+
 class DEL_CHANNEL(Packet):
+    name = "DEL_CHANNEL"
     fields_desc = [
         XByteField("command", DEL_CHANNEL),
         XByteField("id", 0),
         ]
 
+class SAVE_M(Packet):
+    name = "SAVE_M"
+    fields_desc = [
+        XByteField("command", SAVE_M),
+        IntField("maddr", 0),
+        IntField("len", 0)
+    ]
+
+class SET_M(Packet):
+    name = "SET_M"
+    fields_desc = [
+        XByteField("command", SET_M),
+        XIntField("maddr", 0),
+        FieldLenField("datalen", 0, fmt="H", length_of="data"),
+        StrLenField("data", "", "datalen")
+        ]
+
 class SEND_M_RESPONSE(Packet):
+    name = "SEND_M_RESPONSE"
     fields_desc = [
         ByteEnumField("result", 0, {0: "m_clear", 1:"success", 2:"invalid_range"}),
         XIntField("mlen", 0),
@@ -193,7 +268,7 @@ def getflags(dstip, cookie, cmdip, cmdport, localip, port=4445):
         return None
     return str(res[0][Raw])
 
-def getm(dstip, cookie, cmdip, cmdport, localip, maddr, mlen, port=4445):
+def get_m(dstip, cookie, cmdip, cmdport, localip, maddr, mlen, port=4445):
     res = ocsr(IP(src=cmdip,dst=dstip)/UDP(sport=port,dport=cmdport)/OCtrl(cookie)/SEND_M(maddr=maddr, len=mlen, dst=(localip,port)), verbose=2, timeout=GLOBAL_TIMEOUT, filter="udp and dst port %u" % port)
     if isinstance(res, tuple):
         res = reduce(lambda x,y: x+y, res)
@@ -213,6 +288,102 @@ def setchannel(dstip, cookie, cmdip, cmdport, chanid, chantype, chanip, chanport
 def delchannel(dstip, cookie, cmdip, cmdport, chanid, port=4445):
     p = IP(src=cmdip,dst=dstip)/UDP(sport=port,dport=cmdport)/OCtrl(cookie)/DEL_CHANNEL(id=chanid)
     send(p)
+
+def set_m(dstip, cookie, cmdip, cmdport, maddr, m, port=4445):
+    p = IP(src=cmdip,dst=dstip)/UDP(sport=port,dport=cmdport)/OCtrl(cookie)/SET_M(maddr=maddr, data=m, datalen=len(m))
+    send(p)
+
+def save_m(dstip, cookie, cmdip, cmdport, maddr, mlen, port=4445):
+    p = IP(src=cmdip,dst=dstip)/UDP(sport=port,dport=cmdport)/OCtrl(cookie)/SAVE_M(maddr=maddr, len=mlen)
+    send(p)
+
+def delete_m(dstip, cookie, cmdip, cmdport, maddr, mlen, port=4445):
+    p = IP(src=cmdip,dst=dstip)/UDP(sport=port,dport=cmdport)/OCtrl(cookie)/DELETE_M(maddr=maddr, len=mlen)
+    send(p)
+
+def setflag(dstip, cookie, cmdip, cmdport, flag, flagval, port=4445):
+    p = IP(src=cmdip,dst=dstip)/UDP(sport=port,dport=cmdport)/OCtrl(cookie)/SET_FLAG(flag=flag, data=flagval, datalen=len(flagval))
+    send(p)
+
+def setcookie(dstip, cookie, cmdip, cmdport, ncookie, port=4445):
+    p = IP(src=cmdip,dst=dstip)/UDP(sport=port,dport=cmdport)/OCtrl(cookie)/SET_COOKIE(cookie=ncookie, cookielen=len(ncookie))
+    send(p)
+
+def setcmdip(dstip, cookie, cmdip, cmdport, ncmdip, port=4445):
+    p = IP(src=cmdip,dst=dstip)/UDP(sport=port,dport=cmdport)/OCtrl(cookie)/SET_CMDIP(ip=ncmdip, iplen=len(ncmdip))
+    send(p)
+
+def setcmdport(dstip, cookie, cmdip, cmdport, nport, port=4445):
+    p = IP(src=cmdip,dst=dstip)/UDP(sport=port,dport=cmdport)/OCtrl(cookie)/SET_CMDPORT(port=nport)
+    send(p)
+
+def clear_m(dstip, cookie, cmdip, cmdport, port=4445):
+    p = IP(src=cmdip,dst=dstip)/UDP(sport=port,dport=cmdport)/OCtrl(cookie)/CLEAR_M()
+    send(p)
+
+clear_m("192.168.1.1", "cookie", "192.168.0.5", 4142)
+
+set_m("192.168.1.1", "cookie", "192.168.0.5", 4142, 0, "abcdefg")
+save_m("192.168.1.1", "cookie", "192.168.0.5", 4142, 0, 16)
+m = get_m("192.168.1.1", "cookie", "192.168.0.5", 4142, "192.168.1.1", 0, 16)
+if m is not None:
+    print "m[0:15]: " 
+    hexdump(m)
+    mp = SEND_M_RESPONSE(m)
+    mp.display()
+else:
+    print "(no response)"
+delete_m("192.168.1.1", "cookie", "192.168.0.5", 4142, 0, 4)
+m = get_m("192.168.1.1", "cookie", "192.168.0.5", 4142, "192.168.1.1", 0, 16)
+if m is not None:
+    print "m[0:15]: " 
+    hexdump(m)
+    mp = SEND_M_RESPONSE(m)
+    mp.display()
+else:
+    print "(no response)"
+exit(1)
+
+
+exit(1)
+
+
+setcmdport("192.168.1.1", "cookie", "192.168.0.5", 4142, 4143)
+setcmdport("192.168.1.1", "cookie", "192.168.0.5", 4143, 4142)
+
+setcmdip("192.168.1.1", "cookie", "192.168.0.5", 4142, inet_aton("192.168.0.8"))
+setcmdip("192.168.1.1", "cookie", "192.168.0.8", 4142, inet_aton("192.168.0.5"))
+
+ver = getversion("192.168.1.1", "cookie", "192.168.0.5", 4142, dst=("192.168.1.1",4445))
+print "version: " + str(ver)
+setcookie("192.168.1.1", "cookie", "192.168.0.5", 4142, "aaabbb")
+ver = getversion("192.168.1.1", "aaabbb", "192.168.0.5", 4142, dst=("192.168.1.1",4445))
+print "version: " + str(ver)
+setcookie("192.168.1.1", "aaabbb", "192.168.0.5", 4142, "cookie")
+
+setflag("192.168.1.1", "cookie", "192.168.0.5", 4142, OCTRL_FLAG_ENABLE_PMLVM, "\x01")
+
+m = get_m("192.168.1.1", "cookie", "192.168.0.5", 4142, "192.168.1.1", 0, 16)
+if m is not None:
+    print "m[0:15]: " 
+    hexdump(m)
+    mp = SEND_M_RESPONSE(m)
+    mp.display()
+else:
+    print "(no response)"
+
+set_m("192.168.1.1", "cookie", "192.168.0.5", 4142, 0, "abcdefg")
+save_m("192.168.1.1", "cookie", "192.168.0.5", 4142, 0, 16)
+m = get_m("192.168.1.1", "cookie", "192.168.0.5", 4142, "192.168.1.1", 0, 16)
+if m is not None:
+    print "m[0:15]: " 
+    hexdump(m)
+    mp = SEND_M_RESPONSE(m)
+    mp.display()
+else:
+    print "(no response)"
+exit(1)
+
 
 
 chans = getchannels("192.168.1.1", "cookie", "192.168.0.5", 4142, "192.168.1.1")
@@ -237,12 +408,11 @@ chans = getchannels("192.168.1.1", "cookie", "192.168.0.5", 4142, "192.168.1.1")
 print "chans: " 
 ch = SEND_CHANNELS_RESPONSE(chans)
 ch.display()
-exit(1)
 
 setfilter("192.168.1.1", "cookie", "192.168.0.5", 4142, "\xFF\xFF\xFF\xFF\xFF\xFF")
 
 
-m = getm("192.168.1.1", "cookie", "192.168.0.5", 4142, "192.168.1.1", 0, 4)
+m = get_m("192.168.1.1", "cookie", "192.168.0.5", 4142, "192.168.1.1", 0, 4)
 if m is not None:
     print "m[0:15]: " 
     hexdump(m)
