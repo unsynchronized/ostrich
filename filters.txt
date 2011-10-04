@@ -237,11 +237,6 @@ EXIT: stop execution of program
     opcodes:
         0x00 .. .. .. .. ..
 
-EXEC n: interpret part of the text as a command.   
-    opcodes:
-        0x01 0x00 AA BB CC DD:  start at P[0xAABBCCDD]
-        0x01 0x01 AA BB CC DD:  start at M[0xAABBCCDD]
-
 CHECKSUM
     opcodes:
         0x08 0x00 .. .. .. ..:  ipv4 header checksum; header starts at M[X]

@@ -56,7 +56,6 @@ bool pmlvm_process(struct pml_packet_info *pinfo);
 
 /* PML instructions */
 #define PML_EXIT        0x0
-#define PML_EXEC        0x1
 #define PML_DIVERT_M    0x2
 #define PML_DIVERT_P    0x3
 #define PML_INSERT      0x4
@@ -86,10 +85,6 @@ bool pmlvm_process(struct pml_packet_info *pinfo);
 #define PML_JLE         0x34
 #define PML_JEQ         0x35
 #define PML_JSET        0x36
-
-/* EXEC */
-#define PML_EXEC_P 0
-#define PML_EXEC_M 1
 
 /* DIVERT */
 #define PML_CHANNEL_RAW 0xff
