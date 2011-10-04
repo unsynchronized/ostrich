@@ -1,9 +1,9 @@
 #include <pmlvm.h>
 #include <pmlmachdep.h>
 #include <octrlmachdep.h>
-#include <utils.h>
+#include <pmlutils.h>
 #include <octrl.h>
-#include <version.h>
+#include <ostversion.h>
 
 /* XXX REMOVE ALL OF THIS */
 #define CHECK_PLEN check_plen
@@ -114,7 +114,8 @@ void octrl_send_channels(struct octrl_settings *settings, struct octrl_channel *
         return;
     }
     buf[0] = settings->nchannels;
-    for(unsigned int i = 0; i < settings->nchannels; i++) {
+    unsigned int i;
+    for(i = 0; i < settings->nchannels; i++) {
         octrl_serialize_channel(settings->channels[i], &buf[1+chansz*i]);
     }
     octrl_md_send_channel(outchannel, buf, bufsz);
@@ -126,7 +127,8 @@ struct octrl_channel *octrl_get_channel(struct octrl_settings *settings, u_int8_
     if(settings->channels == NULL || settings->nchannels == 0) {
         return NULL;
     }
-    for(u_int32_t i = 0; i < settings->nchannels; i++) {
+    u_int32_t i;
+    for(i = 0; i < settings->nchannels; i++) {
         if(settings->channels[i]->channelid == chanid) {
             return settings->channels[i];
         }
@@ -156,7 +158,8 @@ bool octrl_check_command(struct octrl_settings *settings, struct pml_packet_info
             if(tocheck == 0 || CHECK_PLEN(iphdr+8, 16) == 0) {
                 return 1;
             }
-            for(u_int32_t i = 0; i < tocheck; i++) {  
+            u_int32_t i;
+            for(i = 0; i < tocheck; i++) {  
                 if(p[iphdr+8+i] != settings->commandip[i]) {      /* timing attack! :-) */
                     return 1;
                 }
@@ -166,7 +169,8 @@ bool octrl_check_command(struct octrl_settings *settings, struct pml_packet_info
             if(tocheck == 0 || CHECK_PLEN(iphdr+12, 4) == 0) {
                 return 1;
             }
-            for(u_int32_t i = 0; i < tocheck; i++) {  
+            u_int32_t i = 0;
+            for(i = 0; i < tocheck; i++) {  
                 if(p[iphdr+12+i] != settings->commandip[i]) {      /* timing attack! :-) */
                     return 1;
                 }

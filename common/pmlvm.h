@@ -12,7 +12,7 @@
 #endif /* DEBUG */
 
 #define TLPROTO_UNKNOWN  0
-#define TLPROTO_80213    1
+#define TLPROTO_ETHERNET 1
 
 /* pml_packet_info: used to describe the packet to be processed.  This includes a
  * pointer to the packet itself as well as the data for most of the special variables

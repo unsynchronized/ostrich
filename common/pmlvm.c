@@ -1,6 +1,6 @@
 #include <pmlvm.h>
 #include <pmlmachdep.h>
-#include <utils.h>
+#include <pmlutils.h>
 #ifdef DEBUG
 #include <assert.h>   // XXX: remove
 #define DASSERT(x) assert(x)
@@ -289,6 +289,7 @@ static void pml_mov(u_int8_t *p) {
                 break;
             default:
                 DASSERT(0);  // XXX rm
+                return;
                 break;
         }
         switch(dst) {
@@ -412,6 +413,7 @@ static void pml_mov(u_int8_t *p) {
                 break;
             default:
                 DASSERT(0);  // XXX rm
+                return;
                 break;
         }
         switch(dst) {
@@ -527,6 +529,7 @@ static void pml_mov(u_int8_t *p) {
                 break;
             default:
                 DASSERT(0);  // XXX rm
+                return;
                 break;
         }
         switch(dst) {

@@ -35,7 +35,7 @@ void pml_md_init(void);
  */
 void pml_md_debug(const char *fmt, ...);
 
-/* pml_md_debug_pkt: XXX doc*/
+/* XXX doc */
 void pml_md_debug_pkt(char *data);
 
 /* pml_md_memmove: copies n bytes from src to dest; src and dest may be overlapping */
@@ -77,4 +77,8 @@ bool pml_md_delete_p(u_int32_t nbytes, u_int32_t startoff, struct pml_packet_inf
  */
 bool pml_md_divert(struct pmlvm_context *context, u_int8_t channel, u_int8_t *packet, u_int32_t packetlen);
 
+extern int XXXprocessing;
+extern u_int32_t XXXips;
+extern u_int32_t XXXother;
+extern char XXXlastbuf[512];
 #endif /* PML_MACHDEP */

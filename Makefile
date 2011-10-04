@@ -30,7 +30,16 @@ $(OUTDIR):
 linux:
 	cp wrt150n/pmltypes.h $(LINUXROOT)/include/
 	cp wrt150n/pmlmachdep.c $(LINUXROOT)/net/
+	cp wrt150n/octrlmachdep.c $(LINUXROOT)/net/
+	cp common/pmlvm.c $(LINUXROOT)/net/
+	cp common/octrl.c $(LINUXROOT)/net/
+	cp common/pmlutils.c $(LINUXROOT)/net/
+	cp common/pmlutils.h $(LINUXROOT)/include/
+	cp common/ostversion.h $(LINUXROOT)/include/
+	cp common/ostversion.c $(LINUXROOT)/net/
 	cp common/pmlmachdep.h $(LINUXROOT)/include/
+	cp common/octrlmachdep.h $(LINUXROOT)/include/
 	cp common/pmlvm.h $(LINUXROOT)/include/
+	cp common/octrl.h $(LINUXROOT)/include/
 	
 

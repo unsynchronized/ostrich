@@ -13,7 +13,16 @@
 - test find
 - test movs header offsets
 - test divert
+- remove DASSERT/asserts
+- allow errors in instructions to stop the program (e.g. return from pml_mov)
 - is enable_cookie really necessary?
 - CRC?
 - test newprog
 - implement tuntap PML_CHANNEL_IP
+
+typical dev table:
+    1: lo
+    2: eth0
+    3: eth1
+    4: eth2
+    5: br0

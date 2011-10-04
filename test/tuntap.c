@@ -20,7 +20,7 @@
 #include <octrl.h>
 #include <octrlmachdep.h>
 #include <pmlmachdep.h>
-#include <utils.h>
+#include <pmlutils.h>
 
 /*
  * TAP-based ostrich implementation; pulls packets from interface (default eth2),
@@ -206,7 +206,7 @@ int main(int argc, char *argv[]) {
                 case ETH_P_ARP:
                     ppi.ethhdroff = 0;
                     ppi.flags.has_ethhdroff = 1;
-                    ppi.tlproto = TLPROTO_80213;
+                    ppi.tlproto = TLPROTO_ETHERNET;
                     done = 1;
                     break;
                 case ETH_P_8021Q:
@@ -226,7 +226,7 @@ int main(int argc, char *argv[]) {
                     ppi.flags.has_ethhdroff = 1;
                     ppi.iphdroff = ethoff + 14;
                     ppi.flags.has_iphdroff = 1;
-                    ppi.tlproto = TLPROTO_80213;
+                    ppi.tlproto = TLPROTO_ETHERNET;
                     if(ppi.pktlen >= (34 + ethoff)) {  /* 20b IP min + 14 eth + (opt) vlan */
                         u_int16_t iphdrsz = 4*(inbuf[ppi.iphdroff] & 0xf);
                         if(ppi.pktlen < (14 + ethoff + iphdrsz)) {
@@ -243,7 +243,7 @@ int main(int argc, char *argv[]) {
                     ppi.flags.has_ethhdroff = 1;
                     ppi.iphdroff = ethoff + 14;
                     ppi.flags.has_iphdroff = 1;
-                    ppi.tlproto = TLPROTO_80213;
+                    ppi.tlproto = TLPROTO_ETHERNET;
                     /* XXX: no tlhdr for ipv6 yet) */
                     ppi.ip4tlhdroff = 0;
                     ppi.flags.has_ip4tlhdroff = 0;
