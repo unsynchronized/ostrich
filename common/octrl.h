@@ -37,7 +37,8 @@ typedef struct octrl_channel {
 
 #define OCTRL_FLAG_ENABLE_COOKIE 0x0
 #define OCTRL_FLAG_ENABLE_PMLVM  0x1
-#define OCTRL_FLAG_MAX           0x1  /* don't forget to update this and the serializer! */
+#define OCTRL_FLAG_MAX_INSNS     0x2
+#define OCTRL_FLAG_MAX           0x2  /* don't forget to update this and the serializer! */
 
 struct octrl_settings {
     u_int8_t *cookie;           /* secret cookie preamble */
@@ -53,6 +54,8 @@ struct octrl_settings {
     u_int8_t *program;          /* initial state of program at boot */
     u_int32_t proglen;
     bool has_program;
+
+    u_int32_t maxinsns;         /* maximum number of instructions to run per packet */
 
     u_int8_t *savedm;           /* initial state of M at boot */
     u_int32_t savedmlen;

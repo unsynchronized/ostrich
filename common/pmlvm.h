@@ -51,7 +51,7 @@ struct pmlvm_context *pmlvm_current_context(void);
 void pmlvm_init(u_int8_t *program, u_int32_t proglen, u_int8_t *m, u_int32_t mlen);
 
 /* XXX: document */
-bool pmlvm_process(struct pml_packet_info *pinfo);
+bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns);
 
 
 /* PML instructions */

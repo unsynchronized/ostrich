@@ -270,7 +270,7 @@ int main(int argc, char *argv[]) {
             continue;
         }
         if(settings->processing_enabled) {
-            pret = pmlvm_process(&ppi);
+            pret = pmlvm_process(&ppi, settings->maxinsns);
             pmlvm_debug();
             if(pret == 0 || ppi.pktlen == 0) {
                 continue;

@@ -63,9 +63,9 @@ struct octrl_settings *octrl_md_retrieve_settings(void) {
 /* 150 */   PML_MOVH, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_A), 0, 0, 0, 0,
 /* 156 */   PML_MOVH, PML_MOV_DSB(PML_MOV_ADDR_A, PML_MOV_ADDR_M_N), 0, 0, 0, 40,
 /* 132 */   PML_CHECKSUM, PML_CHECKSUM_UDP4_M_X, 0, 0, 0, 0,
-
 /*     */
     };
+    current_settings->maxinsns = 100;
     current_settings->processing_enabled = 1;
     current_settings->savedmlen = 0;
     current_settings->savedm = NULL;
@@ -251,14 +251,24 @@ void octrl_md_set_flag(u_int32_t flag, u_int8_t *val, u_int32_t vlen) {
         DLOG("invalid flag set: 0x%x", flag);
         return;
     }
-    if(vlen != 1) {
-        DLOG("invalid flag value length for binary flags: 0x%x", flag);
-        return;
-    }
     if(flag == OCTRL_FLAG_ENABLE_COOKIE) {
+        if(vlen != 1) {
+            DLOG("invalid flag value length for binary flags: 0x%x", flag);
+            return;
+        }
         current_settings->cookie_enabled = val[0] == 0 ? 0 : 1;
     } else if(flag == OCTRL_FLAG_ENABLE_PMLVM) {
+        if(vlen != 1) {
+            DLOG("invalid flag value length for binary flags: 0x%x", flag);
+            return;
+        }
         current_settings->processing_enabled = val[0] == 0 ? 0 : 1;
+    } else if(flag == OCTRL_FLAG_MAX_INSNS) {
+        if(vlen != 4) {
+            DLOG("invalid flag value length for binary flags: 0x%x", flag);
+            return;
+        }
+        current_settings->maxinsns = EXTRACT4(val);
     }
     octrl_md_save_settings();
 }

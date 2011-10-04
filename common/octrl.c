@@ -89,16 +89,18 @@ void octrl_serialize_channel(struct octrl_channel *chan, u_int8_t *buf) {
 
 /* send all flag values to the channel outchannel. */
 void octrl_send_flags(struct octrl_settings *settings, struct octrl_channel *outchannel) {
-    const u_int32_t bufsz = 20;
+    const u_int32_t bufsz = 4+((OCTRL_FLAG_MAX+1)*8);
     u_int8_t *buf = pml_md_allocbuf(bufsz);
     if(buf == NULL) {
         return;
     }
-    pml_setu32(&buf[0], 16);
+    pml_setu32(&buf[0], (OCTRL_FLAG_MAX+1)*8);
     pml_setu32(&buf[4], OCTRL_FLAG_ENABLE_COOKIE);
     pml_setu32(&buf[8], settings->cookie_enabled);
     pml_setu32(&buf[12], OCTRL_FLAG_ENABLE_PMLVM);
     pml_setu32(&buf[16], settings->processing_enabled);
+    pml_setu32(&buf[20], OCTRL_FLAG_MAX_INSNS);
+    pml_setu32(&buf[24], settings->maxinsns);
     octrl_md_send_channel(outchannel, buf, bufsz);
     pml_md_freebuf(buf);
 }

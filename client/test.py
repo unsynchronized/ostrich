@@ -37,6 +37,7 @@ OCTRL_CHANNEL_UDP4 = 0
 # Currently-defined flags.
 OCTRL_FLAG_ENABLE_COOKIE = 0
 OCTRL_FLAG_ENABLE_PMLVM  = 1
+OCTRL_FLAG_MAX_INSNS     = 2
 
 class OCtrlCommand(Packet):
     fields_desc = [
@@ -320,6 +321,11 @@ def setcmdport(dstip, cookie, cmdip, cmdport, nport, port=4445):
 def clear_m(dstip, cookie, cmdip, cmdport, port=4445):
     p = IP(src=cmdip,dst=dstip)/UDP(sport=port,dport=cmdport)/OCtrl(cookie)/CLEAR_M()
     send(p)
+
+
+
+setflag("192.168.1.1", "cookie", "192.168.0.5", 4142, OCTRL_FLAG_MAX_INSNS, struct.pack("!I", 1000))
+exit(1)
 
 clear_m("192.168.1.1", "cookie", "192.168.0.5", 4142)
 

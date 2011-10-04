@@ -799,9 +799,12 @@ bool check_crc32(u_int8_t *buf, u_int32_t len, u_int32_t crccheck) {
  * returns 1 if the packet buffer should be passed on; returns 0 if the packet
  * should be dropped.  if the return value is 1, then the pkt and pktlen values
  * inside pinfo will be updated; use those values.
+ *
+ * maxinsns is the maximum number of instructions to execute, period.
  */
-bool pmlvm_process(struct pml_packet_info *pinfo) {
+bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns) {
     curppi = pinfo;
+    u_int32_t insncount = 0;
     const u_int32_t initialplen = pinfo->pktlen;
     processflag = 1;
     if(ctx == NULL || ctx->prog == NULL || ctx->proglen < 6) {
@@ -819,15 +822,16 @@ bool pmlvm_process(struct pml_packet_info *pinfo) {
     pc = x = y = a = 0;
     bool stopflag = 0;
 
-    while(stopflag == 0 && pc < ctx->proglen) {
+    while(insncount < maxinsns && stopflag == 0 && pc < ctx->proglen) {
         p = pml_md_getpbuf(pinfo);
         const u_int8_t opcode = ctx->prog[pc];
 #ifdef DEBUG
-        DLOG("PC % 4d: a %08x x %08x y %08x : %02x %02x %02x %02x %02x %02x", pc, a, x, y,
+        DLOG("%04d/%04d: PC % 4d: a %08x x %08x y %08x : %02x %02x %02x %02x %02x %02x", insncount, maxinsns, pc, a, x, y,
                 (ctx->prog[pc] & 0xff), (ctx->prog[pc+1] & 0xff),
                 (ctx->prog[pc+2] & 0xff), (ctx->prog[pc+3] & 0xff),
                 (ctx->prog[pc+4] & 0xff), (ctx->prog[pc+5] & 0xff));
 #endif
+        insncount++;
         switch(opcode) {
             case PML_SETFLAG:
                 {
