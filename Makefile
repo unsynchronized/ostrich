@@ -2,6 +2,7 @@ BASEDIR := .
 OUTDIR := $(BASEDIR)/out
 INCLUDES += -I$(BASEDIR)/common
 CFLAGS += -DDEBUG -g -Wall -Werror -std=c99
+LINUXROOT=/home/cstone/routers/wrt150n/WRT150N_v1_01_9_0623_US/release/src/linux/linux
 
 COMMON_OBJS=$(patsubst %.c,%.o,$(wildcard common/*.c))
 TEST_OBJS=$(patsubst %.c,%.o,$(wildcard test/*.c))
@@ -26,4 +27,10 @@ clean:
 $(OUTDIR): 
 	mkdir $(OUTDIR)
 
+linux:
+	cp wrt150n/pmltypes.h $(LINUXROOT)/include/
+	cp wrt150n/pmlmachdep.c $(LINUXROOT)/net/
+	cp common/pmlmachdep.h $(LINUXROOT)/include/
+	cp common/pmlvm.h $(LINUXROOT)/include/
+	
 

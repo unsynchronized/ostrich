@@ -27,10 +27,16 @@ void pml_md_freebuf(void *buf);
 /* XXX: doc */
 void pml_md_free_context(struct pmlvm_context *ctx);
 
+/* XXX: doc */
+void pml_md_init(void);
+
 /* pml_md_debug: safely log a debugging message; typically these are errors or
  * warnings.  only called when DEBUG is defined
  */
 void pml_md_debug(const char *fmt, ...);
+
+/* pml_md_debug_pkt: XXX doc*/
+void pml_md_debug_pkt(char *data);
 
 /* pml_md_memmove: copies n bytes from src to dest; src and dest may be overlapping */
 void pml_md_memmove(void *dest, const void *src, u_int32_t n);

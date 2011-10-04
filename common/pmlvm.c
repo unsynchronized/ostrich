@@ -3,7 +3,10 @@
 #include <utils.h>
 #ifdef DEBUG
 #include <assert.h>   // XXX: remove
-#endif
+#define DASSERT(x) assert(x)
+#else
+#define DASSERT(x)
+#endif  /* DEBUG */
 
 
 static struct pmlvm_context *ctx = NULL;
@@ -209,7 +212,7 @@ static void pml_math(u_int8_t opcode) {
             a = a >> roperand;
             break;
         default:
-            assert(0);  /* XXX should be checking */
+            DASSERT(0);  /* XXX should be checking */
             break;
     }
 }
@@ -285,7 +288,7 @@ static void pml_mov(u_int8_t *p) {
                 srcval = 4 * (ctx->m[x] & 0xf);
                 break;
             default:
-                assert(0);  // XXX rm
+                DASSERT(0);  // XXX rm
                 break;
         }
         switch(dst) {
@@ -339,7 +342,7 @@ static void pml_mov(u_int8_t *p) {
                 }
                 break;
             default:
-                assert(0);  // XXX rm
+                DASSERT(0);  // XXX rm
                 break;
         }
     } else if(ctx->prog[pc] == PML_MOVH) {
@@ -408,7 +411,7 @@ static void pml_mov(u_int8_t *p) {
                 srcval = 4 * (ctx->m[x] & 0xf);
                 break;
             default:
-                assert(0);  // XXX rm
+                DASSERT(0);  // XXX rm
                 break;
         }
         switch(dst) {
@@ -454,7 +457,7 @@ static void pml_mov(u_int8_t *p) {
                 }
                 break;
             default:
-                assert(0);  // XXX rm
+                DASSERT(0);  // XXX rm
                 break;
         }
     } else if(ctx->prog[pc] == PML_MOVB) {
@@ -523,7 +526,7 @@ static void pml_mov(u_int8_t *p) {
                 srcval = 4 * (ctx->m[x] & 0xf);
                 break;
             default:
-                assert(0);  // XXX rm
+                DASSERT(0);  // XXX rm
                 break;
         }
         switch(dst) {
@@ -565,11 +568,11 @@ static void pml_mov(u_int8_t *p) {
                 }
                 break;
             default:
-                assert(0);  // XXX rm
+                DASSERT(0);  // XXX rm
                 break;
         }
     } else {
-        assert(0);  // XXX shouldn't happen
+        DASSERT(0);  // XXX shouldn't happen
     }
 }
 
@@ -944,7 +947,7 @@ bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns) {
                             srcval = pc;
                             break;
                         default:
-                            assert(0);  // XXX: shouldn't get here
+                            DASSERT(0);  // XXX: shouldn't get here
                             break;
                     }
                     switch(dst) {
@@ -1002,7 +1005,7 @@ bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns) {
                             }
                             break;
                         default:
-                            assert(0);  // XXX rm
+                            DASSERT(0);  // XXX rm
                             break;
                     }
                 }

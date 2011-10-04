@@ -440,12 +440,11 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
                 break;
             default:
                 DLOG("invalid octrl command received: 0x%x", opcode);
-                void exit(int); exit(1);    /* XXX */
                 i++;    /* XXX; should return */
                 break;
         }
     }
-    void exit(int x); if(i != iend) {DLOG("i 0x%x", i); exit(1);} /* XXX */
+    if(i != iend) {DLOG("XXX i wrong i 0x%x", i); } /* XXX */
     return 0;
 }
    
