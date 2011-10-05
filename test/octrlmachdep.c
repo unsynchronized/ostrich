@@ -122,6 +122,7 @@ bool octrl_md_send_channel(struct octrl_channel *chan, u_int8_t *buf, u_int32_t 
                 close(fd);
             }
             break;
+            /* XXX: other types */
         default:
             DLOG("invalid channel type: %x", chan->channeltype);
             return 0;

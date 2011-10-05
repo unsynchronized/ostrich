@@ -33,6 +33,8 @@ typedef struct pml_packet_info {
         unsigned int has_ip4tlhdroff : 1;
         unsigned int has_vlantag : 1;
     } flags;
+
+    void *md_ptr;           /* free pointer for use by machdep layer */
 } pml_packet_info;
 
 /* XXX: doc */

@@ -78,7 +78,7 @@ int XXXprocessing = 0;
 u_int32_t XXXother = 0, XXXips = 0;
 
 /* pml_md_tap: returns 1 if this packet should be dropped; 0 if not */
-int pml_md_tap(struct sk_buff *skb) {
+int pml_md_tap(struct sk_buff **skb) {
     if(XXXprocessing == 0) {
         return 0;
     }
@@ -86,29 +86,30 @@ int pml_md_tap(struct sk_buff *skb) {
     u_int32_t topush;
     struct pml_packet_info ppi;
     memset(&ppi, 0, sizeof(ppi));
-    if(skb->protocol == htons(ETH_P_IP)) {
-        if(skb->mac.ethernet == NULL) {
+    if((*skb)->protocol == htons(ETH_P_IP)) {
+        if((*skb)->mac.ethernet == NULL) {
             return 0;
         }
-        if(skb->mac.raw > skb->data) {
+        if((*skb)->mac.raw > (*skb)->data) {
             return 0;
         }
-        topush = skb->data-skb->mac.raw;
+        topush = (*skb)->data-(*skb)->mac.raw;
         ppi.ethhdroff = 0;
         ppi.flags.has_ethhdroff = 1;
         ppi.iphdroff = topush;
         ppi.flags.has_iphdroff = 1;
         ppi.tlproto = TLPROTO_ETHERNET;
+        ppi.md_ptr = (*skb);
     } else {
         XXXother++;
         return 0;
     }
-    skb_push(skb, topush);
+    skb_push((*skb), topush);
     int retval = 0;
-    ppi.pkt = skb->data;
-    ppi.pktlen = skb->len;
+    ppi.pkt = (*skb)->data;
+    ppi.pktlen = (*skb)->len;
     if(ppi.flags.has_iphdroff && ppi.pktlen >= (topush+20+ppi.ethhdroff)) {
-        u_int16_t hdrsz = 4*(skb->data[ppi.iphdroff] & 0xf);
+        u_int16_t hdrsz = 4*((*skb)->data[ppi.iphdroff] & 0xf);
         if(ppi.pktlen > (topush+ppi.ethhdroff+hdrsz)) {
             ppi.ip4tlhdroff = topush+ppi.ethhdroff+hdrsz;
             ppi.flags.has_ip4tlhdroff = 1;
@@ -116,8 +117,21 @@ int pml_md_tap(struct sk_buff *skb) {
     }
     XXXips++;
     bool pret = octrl_check_command(settings, &ppi);
+    if(pret == 0 || ppi.pktlen == 0) {
+        retval = 1;
+        goto out;
+    }
+    if(settings->processing_enabled) {
+        pret = pmlvm_process(&ppi, settings->maxinsns);
+        if(pret == 0 || ppi.pktlen == 0) {
+            retval = 1;
+            goto out;
+        }
+    }
 
-    skb_pull(skb, topush);
+out:    /* we're inside linux; i think that means goto is okay */
+    *skb = (struct sk_buff *)ppi.md_ptr;
+    skb_pull(*skb, topush);
     return retval;
 }
 u_int8_t *pml_md_getpbuf(struct pml_packet_info *ppi) {
@@ -172,28 +186,114 @@ u_int32_t pml_md_currenttime(void) {
     return tv.tv_usec;
 }
 
-/* XXX doc */
-bool pml_md_insert_m(u_int32_t nbytes, u_int32_t startoff, struct pmlvm_context *context) {
-    /* XXX implement */
-    return 0;
+void *pml_md_realloc(void *ptr, size_t newsz) {
+    void *newptr = kmalloc(newsz, GFP_KERNEL);
+    if(newptr != NULL) {
+        memcpy((u_int8_t *)newptr, (u_int8_t *)ptr, newsz);
+    }
+    return newptr;
 }
 
-/* XXX doc */
+/* beforehand: nbytes is checked, startoff must be <= the length */
+bool pml_md_insert_m(u_int32_t nbytes, u_int32_t startoff, struct pmlvm_context *context) {
+    const u_int32_t newsz = context->mlen + nbytes;
+    u_int8_t *newm;
+    if(context->mlen > 0) {
+        newm = pml_md_realloc(context->m, newsz);
+        if(newm == NULL) {
+            return 0;
+        }
+        if(startoff < context->mlen) {
+            memmove(&newm[startoff+nbytes], &newm[startoff], (context->mlen)-startoff);
+        }
+        memset(&newm[startoff], 0, nbytes);
+    } else {
+        newm = kmalloc(newsz, GFP_KERNEL);
+        memset(newm, 0, sizeof(newsz));
+        if(newm == NULL) {
+            return 0;
+        }
+    }
+    context->m = newm;
+    context->mlen = newsz;
+    return 1;
+}
+
 bool pml_md_insert_p(u_int32_t nbytes, u_int32_t startoff, struct pml_packet_info *pinfo) {
     /* XXX implement */
-    return 0;
+    const u_int32_t newsz = pinfo->pktlen + nbytes;
+    struct sk_buff *skb = (struct sk_buff *)pinfo->md_ptr;
+    if(skb == NULL) {
+        return 0;
+    }
+    if(skb_is_nonlinear(skb)) {
+        return 0;
+    }
+    if(pinfo->pktlen > 0) {
+        if(skb_tailroom(skb) < nbytes) {
+            pskb_expand_head(skb, 0, nbytes, GFP_KERNEL);
+            pinfo->pkt = skb->data;
+        }
+        if(skb_tailroom(skb) < nbytes) {
+            DLOG("pskb_expand_head failed");
+            return 0;
+        }
+        skb_put(skb, nbytes);
+        u_int8_t *p = (u_int8_t *)pinfo->pkt;
+        if(startoff < pinfo->pktlen) {
+            memmove(&p[startoff+nbytes], &p[startoff], (pinfo->pktlen)-startoff);
+        }
+        memset(&p[startoff], 0, nbytes);
+    } else {
+        /* XXX: implement */
+        return 0;
+    }
+    pinfo->pktlen = newsz;
+    return 1;
 }
 
-/* XXX doc */
 bool pml_md_delete_m(u_int32_t nbytes, u_int32_t startoff, struct pmlvm_context *context) {
-    /* XXX implement */
-    return 0;
+    if(context->mlen == 0) {
+        DLOG("tried to DELETE from M when M was empty");
+        return 0;
+    }
+    if(context->mlen < nbytes) {
+        DLOG("tried to DELETE too much from M");
+        return 0;
+    }
+    const u_int32_t newsz = context->mlen - nbytes;
+    if(newsz == 0) {
+        kfree(context->m);
+        context->m = NULL;
+        context->mlen = 0;
+        return 1;
+    }
+    memmove(&context->m[startoff], &context->m[startoff+nbytes], newsz-startoff);
+    context->mlen = newsz;
+    return 1;
 }
 
-/* XXX doc */
 bool pml_md_delete_p(u_int32_t nbytes, u_int32_t startoff, struct pml_packet_info *pinfo) {
-    /* XXX implement */
-    return 0;
+    if(pinfo->pktlen == 0) {
+        DLOG("tried to DELETE from P when P was empty");
+        return 0;
+    }
+    struct sk_buff *skb = (struct sk_buff *)pinfo->md_ptr;
+    if(skb == NULL) {
+        return 0;
+    }
+    if(nbytes == 0 || pinfo->pktlen < nbytes || skb_is_nonlinear(skb)) {
+        return 0;
+    }
+    const u_int32_t newsz = pinfo->pktlen - nbytes;
+    skb->tail -= nbytes;
+    skb->len -= nbytes;
+    u_int8_t *p = (u_int8_t *)pinfo->pkt;
+    if(newsz > 0) {
+        memmove(&p[startoff], &p[startoff+nbytes], nbytes);
+    }
+    pinfo->pktlen = newsz;
+    return 1;
 }
 
 /* pml_md_divert: send a packet out the defined channel, if configured.  

@@ -85,6 +85,10 @@ bool pml_md_delete_m(u_int32_t nbytes, u_int32_t startoff, struct pmlvm_context 
         DLOG("tried to DELETE from M when M was empty");
         return 0;
     }
+    if(context->mlen < nbytes) {
+        DLOG("tried to DELETE too much from M");
+        return 0;
+    }
     const u_int32_t newsz = context->mlen - nbytes;
     if(newsz == 0) {
         free(context->m);
@@ -92,7 +96,7 @@ bool pml_md_delete_m(u_int32_t nbytes, u_int32_t startoff, struct pmlvm_context 
         context->mlen = 0;
         return 1;
     }
-    memmove(&context->m[startoff], &context->m[startoff+nbytes], newsz-startoff);   // XXX: kosher?
+    memmove(&context->m[startoff], &context->m[startoff+nbytes], newsz-startoff);
     context->mlen = newsz;
     return 1;
 }
@@ -125,6 +129,9 @@ bool pml_md_insert_p(u_int32_t nbytes, u_int32_t startoff, struct pml_packet_inf
 bool pml_md_delete_p(u_int32_t nbytes, u_int32_t startoff, struct pml_packet_info *pinfo) {
     if(pinfo->pktlen == 0) {
         DLOG("tried to DELETE from P when P was empty");
+        return 0;
+    }
+    if(nbytes == 0 || pinfo->pktlen < nbytes) {
         return 0;
     }
     const u_int32_t newsz = pinfo->pktlen - nbytes;

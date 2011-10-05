@@ -149,6 +149,10 @@ int main(int argc, char *argv[]) {
 
     struct octrl_settings *settings = octrl_md_retrieve_settings();
     pmlvm_init(settings->program, settings->proglen, settings->savedm, settings->savedmlen);
+    struct pmlvm_context *pctx = pmlvm_current_context();
+    if(pctx != NULL) {
+        pctx->md_ptr = &ptcontext;
+    }
     
     while(1) {
         memset(namebuf, 0, sizeof(namebuf));
