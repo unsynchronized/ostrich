@@ -1244,7 +1244,7 @@ bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns) {
         }
         pc += 6;
     }
-    struct sk_buff *skb = (struct sk_buff *)pinfo->md_ptr; pml_md_debug("proc ic %d  in_irq %d  skbusers %d xx", insncount, in_irq(), atomic_read(&skb->users));   /* XXX */
+    //struct sk_buff *skb = (struct sk_buff *)pinfo->md_ptr; pml_md_debug("proc ic %d  in_irq %d  skbusers %d xx", insncount, in_irq(), atomic_read(&skb->users));   /* XXX */
 
     return processflag;
 }
