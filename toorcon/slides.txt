@@ -1,0 +1,31 @@
+- 3: examples of medis players, voip adapters
+- 6: ronco image?
+- 11: screenshot of "default passwords" sites 
+- 14: find a dreambox; find out where they're made and used
+- 15: lulzsec log talking about dreamboxes
+- 16: malware example
+- 17: is tftp okay?
+- 17: research internet-wide surveys (bind, djb, kaminsky)
+- 21: screenshot of email
+- 22: image of syn packet
+- 26: cisco research, ttys0 guy
+- 27: references for DD-WRT, Tomato, RockBox
+- 30: BPF
+
+
+
+- presentation
+    - references
+        - IOS rootkits
+            - Muniz, Sebastian @ CORE, EuSecWest 2008
+        - Zlob/DNSChanger Windows trojan
+            - uses default passwords to log in to a router, config dns settings to a
+              malicious site
+        - Shalev @ Check Point, Defcon 15: A Crazy Toaster: Can Home Devices turn against us?
+            - demo: built a vulnerable device out of a Nokia IPSO
+            - http://www.drorshalev.com/dev/upnp/toaster/
+        - rebinding
+            - Heffner, Craig @ Seismic, Defcon 18: "How to Hack Millions of Routers"
+            - kaminsky: demo 2008 @ RSA
+            - opendns: fixmylinksys.com (site that'll automatically fix your settings)
+
