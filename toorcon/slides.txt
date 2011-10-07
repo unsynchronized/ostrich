@@ -1,14 +1,13 @@
-- 3: examples of medis players, voip adapters
++ 3: examples of media players, voip adapters
 - 6: ronco image?
-- 11: screenshot of "default passwords" sites 
++ 11: screenshot of "default passwords" sites 
 - 14: find a dreambox; find out where they're made and used
 - 15: lulzsec log talking about dreamboxes
-- 16: malware example
-- 17: is tftp okay?
-- 17: research internet-wide surveys (bind, djb, kaminsky)
-- 21: screenshot of email
-- 22: image of syn packet
-- 26: cisco research, ttys0 guy
++ 16: malware example
++ 17: research internet-wide surveys (bind, djb, kaminsky)
++ 21: screenshot of email
++ 22: image of syn packet
++ 26: cisco research, ttys0 guy
 - 27: references for DD-WRT, Tomato, RockBox
 - 30: BPF
 
