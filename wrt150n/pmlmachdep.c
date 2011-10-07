@@ -313,11 +313,9 @@ bool pml_md_delete_p(u_int32_t nbytes, u_int32_t startoff, struct pml_packet_inf
  *   returns 1 if the packet was successfully sent; 0 otherwise
  */
 bool pml_md_divert(struct pmlvm_context *ctx, u_int8_t channel, u_int8_t *packet, u_int32_t packetlen) {
-    struct pml_tuntap_context *ptc = (struct pml_tuntap_context *)ctx->md_ptr;
-    if(ptc == NULL || packetlen == 0) {
+    if(packetlen == 0) {
         return 0;
     }
-    pml_md_debug("div %d", channel);    /* XXX */
     struct octrl_channel *chan = octrl_get_channel(octrl_md_retrieve_settings(), channel);
     if(chan == NULL) {
         pml_md_debug("XXX no channel");

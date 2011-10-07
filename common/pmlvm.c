@@ -1190,13 +1190,11 @@ bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns) {
                 {
                     const u_int8_t channel = ctx->prog[pc+1];
                     const int32_t n = (int32_t) EXTRACT4(&ctx->prog[pc+2]);
-                    pml_md_debug("XXXPDP A");
                     if(CHECK_PLEN(x, n) == 0) {
                         DLOG("DIVERT P: exists past end of P x 0x%x n 0x%x", x, n);
                         a = 0;
                         break;
                     }
-                    pml_md_debug("XXXPDP B");
                     if(pml_md_divert(ctx, channel, &p[x], n)) {
                         a = 1;
                     } else {
