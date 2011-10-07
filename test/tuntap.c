@@ -305,7 +305,7 @@ bool pml_md_divert(struct pmlvm_context *ctx, u_int8_t channel, u_int8_t *packet
     if(ptc == NULL || packetlen == 0) {
         return 0;
     }
-    if(channel == PML_CHANNEL_RAW) {
+    if(channel == OCTRL_CHANNEL_RAW) {
         u_int8_t *outp = (u_int8_t *)malloc(packetlen + ptc->preamblebuflen);
         if(outp == NULL) {
             return 0;
@@ -320,7 +320,7 @@ bool pml_md_divert(struct pmlvm_context *ctx, u_int8_t channel, u_int8_t *packet
             return 0;
         }
         return 1;
-    } else if(channel == PML_CHANNEL_IP) {
+    } else if(channel == OCTRL_CHANNEL_UDP4) {
         assert(0);  /* XXX */
     } else {
         return 0;

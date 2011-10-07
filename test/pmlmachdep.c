@@ -56,7 +56,13 @@ u_int32_t pml_md_currenttime(void) {
 
 /* beforehand: nbytes is checked, startoff must be <= the length */
 bool pml_md_insert_m(u_int32_t nbytes, u_int32_t startoff, struct pmlvm_context *context) {
+    if(startoff > context->mlen) {
+        return 0;
+    }
     const u_int32_t newsz = context->mlen + nbytes;
+    if(startoff+nbytes < startoff || newsz < context->mlen) {
+        return 0;
+    }
     printf("XXX: newsz: mlen 0x%x  nbytes 0x%x  0x%x\n", context->mlen, nbytes, newsz); /* XXX */
     u_int8_t *newm;
     if(context->mlen > 0) {
@@ -69,7 +75,7 @@ bool pml_md_insert_m(u_int32_t nbytes, u_int32_t startoff, struct pmlvm_context 
         }
         memset(&newm[startoff], 0, nbytes);
     } else {
-        newm = calloc(1, newsz);
+        newm = calloc(1, newsz+startoff);
         if(newm == NULL) {
             return 0;
         }

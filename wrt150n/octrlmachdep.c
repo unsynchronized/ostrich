@@ -3,9 +3,13 @@
 #include <pmlvm.h>
 #include <octrlmachdep.h>
 #include <pmlutils.h>
+#include <linux/vmalloc.h>
+
+extern u_int8_t pml_fixed_m[FIXED_M_SIZE]; 
 
 static struct octrl_settings *current_settings = NULL;
 
+void *pml_md_vrealloc(void *ptr, size_t newsz);
 void *pml_md_realloc(void *ptr, size_t newsz);
 
 struct octrl_settings *octrl_md_retrieve_settings(void) {
@@ -54,23 +58,20 @@ struct octrl_settings *octrl_md_retrieve_settings(void) {
 /* 132 */   PML_CHECKSUM, PML_CHECKSUM_UDP4_M_X, 0, 0, 0, 0,
 /*     */
     };
-    current_settings->maxinsns = 10;
+    current_settings->maxinsns = 100;
     current_settings->processing_enabled = 1;
     current_settings->savedmlen = 0;
     current_settings->savedm = NULL;
-    current_settings->program = kmalloc(sizeof(XXXprog), GFP_KERNEL);
+    current_settings->program = vmalloc(sizeof(XXXprog));
     if(current_settings->program != NULL) {
         current_settings->has_program = 1;
         current_settings->proglen = sizeof(XXXprog);
         memcpy(current_settings->program, XXXprog, sizeof(XXXprog));    /* XXX: wasteful to alloc for this */
     }
 
-    current_settings->cookie = kmalloc(6, GFP_KERNEL);
-    if(current_settings->cookie != NULL) {
-        memcpy(current_settings->cookie, "cookie", 6);
-        current_settings->cookie_enabled = 1;
-        current_settings->cookielen = 6;
-    }
+    octrl_md_set_cookie("cookie", 6);
+    current_settings->cookie_enabled = 1;
+
     current_settings->commandip = kmalloc(4, GFP_KERNEL);
     u_int32_t inaddr = htonl(0xa0a0102);   /* XXX: 10.10.1.2 */
     if(current_settings->commandip != NULL) {
@@ -123,7 +124,7 @@ bool octrl_md_send_channel(struct octrl_channel *chan, u_int8_t *buf, u_int32_t 
 void octrl_md_set_filter(u_int8_t *filter, u_int32_t filterlen) {
     struct pmlvm_context *ctx = pmlvm_current_context();
     if(current_settings->proglen > 0 && current_settings->program != NULL) {
-        pml_md_freebuf(current_settings->program);
+        vfree(current_settings->program);
         current_settings->proglen = 0;
         if(ctx != NULL) {
             ctx->prog = NULL;
@@ -131,7 +132,7 @@ void octrl_md_set_filter(u_int8_t *filter, u_int32_t filterlen) {
         }
     }
     if(filterlen > 0) {
-        current_settings->program = kmalloc(filterlen, GFP_KERNEL);
+        current_settings->program = vmalloc(filterlen);
         if(current_settings->program == NULL) {
             DLOG("couldn't allocate space for new filter");
             return;
@@ -143,6 +144,7 @@ void octrl_md_set_filter(u_int8_t *filter, u_int32_t filterlen) {
             ctx->proglen = filterlen;
         }
     }
+    pml_md_debug("XXX fl %d", ctx->proglen);
     octrl_md_save_settings();
 }
 void octrl_md_del_channel(u_int8_t id) {
@@ -206,7 +208,7 @@ void octrl_md_set_channel(u_int8_t *buffer) {
     current_settings->nchannels = current_settings->nchannels + 1;
 }
 void octrl_md_save_m(u_int32_t addr, u_int32_t len) {
-    /* XXX unimpl */
+    /* XXX unimplemented */
     octrl_md_save_settings();
 }
 void octrl_md_set_m(u_int32_t addr, u_int8_t *buf, u_int32_t len) {
@@ -217,23 +219,11 @@ void octrl_md_set_m(u_int32_t addr, u_int8_t *buf, u_int32_t len) {
     if(ctx == NULL) {
         return;
     }
-    if(ctx->m == NULL) {
-        ctx->m = pml_md_allocbuf(addr+len);
-        if(ctx->m == NULL) {
-            DLOG("couldn't alloc space for M");
-            return;
-        }
-        ctx->mlen = addr+len;
-    } else {
-        if(ctx->mlen < addr+len) {
-            u_int8_t *newm = pml_md_realloc(ctx->m, addr+len);
-            if(newm == 0) {
-                DLOG("couldn't realloc M");
-                return;
-            }
-            ctx->mlen = (addr+len);
-            ctx->m = newm;
-        }
+    if(addr+len > sizeof(pml_fixed_m)) {
+        return;
+    }
+    if(ctx->mlen < addr+len) {
+        ctx->mlen = (addr+len);
     }
     pml_md_memmove(&ctx->m[addr], buf, len);
 }
@@ -312,10 +302,7 @@ void octrl_md_clear_m(void) {
     if(ctx == NULL) {
         return;
     }
-    ctx->mlen = 0;
-    if(ctx->m == NULL) {
-        return;
+    if(ctx->mlen > 0) {
+        pml_md_delete_m(0, ctx->mlen, ctx);
     }
-    kfree(ctx->m);
-    ctx->m = NULL;
 }

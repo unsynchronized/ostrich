@@ -18,7 +18,7 @@
 - is enable_cookie really necessary?
 - CRC?
 - test newprog
-- implement tuntap PML_CHANNEL_IP
+- implement tuntap PML_CHANNEL_UDP4
 
 typical dev table:
     1: lo

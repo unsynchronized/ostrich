@@ -11,6 +11,7 @@ typedef struct octrl_channel {
 } octrl_channel;
 
 #define OCTRL_CHANNEL_UDP4  0x0     /* plain udp v4 packet */
+#define OCTRL_CHANNEL_RAW   0xff    /* "raw"; at the same level as PML saw it */
 
 #define OCTRL_SEND_CHANNEL  0x0
 #define OCTRL_SEND_UDPIP4   0x1
@@ -94,5 +95,10 @@ void octrl_serialize_channel(struct octrl_channel *chan, u_int8_t *buf);
  * a struct octrl_channel.
  */
 u_int32_t octrl_serialize_channel_size(void);
+
+/* octrl_get_channel: utility function to look up a channel by chan id; returns NULL if 
+ * the channel can't be found
+ */
+struct octrl_channel *octrl_get_channel(struct octrl_settings *settings, u_int8_t chanid);
 
 #endif /* OCTRL_H */

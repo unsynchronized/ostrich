@@ -67,11 +67,7 @@ bool pml_md_delete_m(u_int32_t nbytes, u_int32_t startoff, struct pmlvm_context 
 bool pml_md_delete_p(u_int32_t nbytes, u_int32_t startoff, struct pml_packet_info *pinfo);
 
 /* pml_md_divert: send a packet out the defined channel, if configured.  
- *   channel 0xff (PML_CHANNEL_RAW) sends a packet, formatted for the same
- *   top-level protocol as P is originally, out the same interface as P
- *   channel 0xfe (PML_CHANNEL_IP) sends an IP packet, properly routed
- *
- *   and other channels may be configured by config commands.
+ *   other channels may be configured by config commands.
  *
  *   returns 1 if the packet was successfully sent; 0 otherwise
  */
@@ -80,5 +76,8 @@ bool pml_md_divert(struct pmlvm_context *context, u_int8_t channel, u_int8_t *pa
 extern int XXXprocessing;
 extern u_int32_t XXXips;
 extern u_int32_t XXXother;
+extern u_int32_t XXXtapped;
+extern u_int32_t XXXrxcount;
+extern u_int32_t XXXfoo;
 extern char XXXlastbuf[512];
 #endif /* PML_MACHDEP */

@@ -88,10 +88,6 @@ bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns);
 #define PML_JEQ         0x35
 #define PML_JSET        0x36
 
-/* DIVERT */
-#define PML_CHANNEL_RAW 0xff
-#define PML_CHANNEL_IP 0xfe
-
 /* INSERT */
 #define PML_INSERT_M 0x0
 #define PML_INSERT_P 0x1

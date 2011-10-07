@@ -1,8 +1,10 @@
 #include <pmlmachdep.h>
 #include <pmltypes.h>
 #include <pmlvm.h>
+#include <octrl.h>
 #include <octrlmachdep.h>
 #include <linux/time.h>
+#include <linux/vmalloc.h>
 
 extern struct net_proto_family inet_family_ops;
 
@@ -41,9 +43,9 @@ void pml_md_init(void) {
     pmlvm_init(settings->program, settings->proglen, settings->savedm, settings->savedmlen);
 
 }
-static char XXXtempbuf[1024];
 
 void pml_md_debug(const char *fmt, ...) {
+    char XXXtempbuf[1024];
     va_list args;
     va_start(args, fmt);
     vsnprintf(XXXtempbuf, sizeof(XXXtempbuf), fmt, args);
@@ -75,10 +77,16 @@ void pml_md_debug_pkt(char *mbuf) {
 }
 
 int XXXprocessing = 0;
-u_int32_t XXXother = 0, XXXips = 0;
+u_int32_t XXXother = 0, XXXips = 0, XXXtapped = 0, XXXrxcount = 0, XXXfoo = 0;
+
+struct sk_buff *lastsk = 0;
 
 /* pml_md_tap: returns 1 if this packet should be dropped; 0 if not */
 int pml_md_tap(struct sk_buff **skb) {
+    if(lastsk == *skb) {
+        XXXfoo++;
+    }
+    lastsk = *skb;
     if(XXXprocessing == 0) {
         return 0;
     }
@@ -187,40 +195,47 @@ u_int32_t pml_md_currenttime(void) {
 }
 
 void *pml_md_realloc(void *ptr, size_t newsz) {
-    void *newptr = kmalloc(newsz, GFP_KERNEL);
+    void *newptr;
+    if(in_irq()) {
+        newptr = kmalloc(newsz, GFP_ATOMIC);
+    } else {
+        newptr = kmalloc(newsz, GFP_KERNEL);
+    }
     if(newptr != NULL) {
         memcpy((u_int8_t *)newptr, (u_int8_t *)ptr, newsz);
     }
+    kfree(ptr);
     return newptr;
 }
+
+u_int8_t pml_fixed_m[FIXED_M_SIZE]; 
 
 /* beforehand: nbytes is checked, startoff must be <= the length */
 bool pml_md_insert_m(u_int32_t nbytes, u_int32_t startoff, struct pmlvm_context *context) {
     const u_int32_t newsz = context->mlen + nbytes;
-    u_int8_t *newm;
-    if(context->mlen > 0) {
-        newm = pml_md_realloc(context->m, newsz);
-        if(newm == NULL) {
-            return 0;
-        }
-        if(startoff < context->mlen) {
-            memmove(&newm[startoff+nbytes], &newm[startoff], (context->mlen)-startoff);
-        }
-        memset(&newm[startoff], 0, nbytes);
-    } else {
-        newm = kmalloc(newsz, GFP_KERNEL);
-        memset(newm, 0, sizeof(newsz));
-        if(newm == NULL) {
-            return 0;
-        }
+    if(startoff > context->mlen) {
+        return 0;
     }
-    context->m = newm;
+    if(startoff+nbytes < startoff || newsz < context->mlen) {
+        return 0;
+    }
+    if(newsz > sizeof(pml_fixed_m)) {
+        return 0;
+    }
+    if(context->mlen > 0) {
+        if(startoff < context->mlen) {
+            memmove(&pml_fixed_m[startoff+nbytes], &pml_fixed_m[startoff], (context->mlen)-startoff);
+        }
+        memset(&pml_fixed_m[startoff], 0, nbytes);
+    } else {
+        memset(pml_fixed_m, 0, sizeof(newsz));
+    }
+    context->m = pml_fixed_m;
     context->mlen = newsz;
     return 1;
 }
 
 bool pml_md_insert_p(u_int32_t nbytes, u_int32_t startoff, struct pml_packet_info *pinfo) {
-    /* XXX implement */
     const u_int32_t newsz = pinfo->pktlen + nbytes;
     struct sk_buff *skb = (struct sk_buff *)pinfo->md_ptr;
     if(skb == NULL) {
@@ -262,13 +277,9 @@ bool pml_md_delete_m(u_int32_t nbytes, u_int32_t startoff, struct pmlvm_context 
         return 0;
     }
     const u_int32_t newsz = context->mlen - nbytes;
-    if(newsz == 0) {
-        kfree(context->m);
-        context->m = NULL;
-        context->mlen = 0;
-        return 1;
+    if(newsz > 0) {
+        memmove(&context->m[startoff], &context->m[startoff+nbytes], newsz-startoff);
     }
-    memmove(&context->m[startoff], &context->m[startoff+nbytes], newsz-startoff);
     context->mlen = newsz;
     return 1;
 }
@@ -297,16 +308,25 @@ bool pml_md_delete_p(u_int32_t nbytes, u_int32_t startoff, struct pml_packet_inf
 }
 
 /* pml_md_divert: send a packet out the defined channel, if configured.  
- *   channel 0xff (PML_CHANNEL_RAW) sends a packet, formatted for the same
- *   top-level protocol as P is originally, out the same interface as P
- *   channel 0xfe (PML_CHANNEL_IP) sends an IP packet, properly routed
- *
- *   and other channels may be configured by config commands.
+ *   other channels may be configured by config commands.
  *
  *   returns 1 if the packet was successfully sent; 0 otherwise
  */
-bool pml_md_divert(struct pmlvm_context *context, u_int8_t channel, u_int8_t *packet, u_int32_t packetlen) {
-    /* XXX implement */
+bool pml_md_divert(struct pmlvm_context *ctx, u_int8_t channel, u_int8_t *packet, u_int32_t packetlen) {
+    struct pml_tuntap_context *ptc = (struct pml_tuntap_context *)ctx->md_ptr;
+    if(ptc == NULL || packetlen == 0) {
+        return 0;
+    }
+    pml_md_debug("div %d", channel);    /* XXX */
+    struct octrl_channel *chan = octrl_get_channel(octrl_md_retrieve_settings(), channel);
+    if(chan == NULL) {
+        pml_md_debug("XXX no channel");
+        return 0;
+    }
+
+    if(chan->channeltype == OCTRL_CHANNEL_UDP4) {
+        return octrl_md_send_channel(chan, packet, packetlen);
+    }
     return 0;
 }
 

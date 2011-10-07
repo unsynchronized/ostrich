@@ -31,4 +31,7 @@
 
 typedef u_int32_t bool;
 
+#define FIXED_M_SIZE 131072
+
+
 #endif  /* PMLTYPES_H */

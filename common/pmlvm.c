@@ -810,7 +810,7 @@ bool check_crc32(u_int8_t *buf, u_int32_t len, u_int32_t crccheck) {
  */
 bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns) {
     curppi = pinfo;
-    u_int32_t insncount = 10;
+    u_int32_t insncount = 0;
     const u_int32_t initialplen = pinfo->pktlen;
     processflag = 1;
     if(ctx == NULL || ctx->prog == NULL || ctx->proglen < 6) {
@@ -831,6 +831,7 @@ bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns) {
     while(insncount < maxinsns && stopflag == 0 && pc < ctx->proglen) {
         p = pml_md_getpbuf(pinfo);
         const u_int8_t opcode = ctx->prog[pc];
+        //pml_md_debug("XXX pc %d a %08x x %08x y %08x", pc, a, x, y);
 #ifdef DEBUG
         DLOG("%04d/%04d: PC % 4d: a %08x x %08x y %08x : %02x %02x %02x %02x %02x %02x", insncount, maxinsns, pc, a, x, y,
                 (ctx->prog[pc] & 0xff), (ctx->prog[pc+1] & 0xff),
@@ -838,6 +839,7 @@ bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns) {
                 (ctx->prog[pc+4] & 0xff), (ctx->prog[pc+5] & 0xff));
 #endif
         insncount++;
+        XXXrxcount++;
         switch(opcode) {
             case PML_SETFLAG:
                 {
@@ -1188,11 +1190,13 @@ bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns) {
                 {
                     const u_int8_t channel = ctx->prog[pc+1];
                     const int32_t n = (int32_t) EXTRACT4(&ctx->prog[pc+2]);
+                    pml_md_debug("XXXPDP A");
                     if(CHECK_PLEN(x, n) == 0) {
                         DLOG("DIVERT P: exists past end of P x 0x%x n 0x%x", x, n);
                         a = 0;
                         break;
                     }
+                    pml_md_debug("XXXPDP B");
                     if(pml_md_divert(ctx, channel, &p[x], n)) {
                         a = 1;
                     } else {
