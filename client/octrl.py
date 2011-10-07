@@ -9,9 +9,6 @@ conf.use_pcap = True        # XXX: a hack to make bpf filters work on linux
 from scapy.all import *
 logging.getLogger("scapy").setLevel(1)
 
-# These variables select 
-
-
 conf.use_pcap = True
 # OCTRL top-level commands.
 SEND_VERSION  = 0x0
@@ -29,6 +26,39 @@ SET_CMDIP     = 0xC
 SET_CMDPORT   = 0xD
 CLEAR_M       = 0xE
 DELETE_M      = 0xF
+
+# PML instructions.
+PML_EXIT        = 0x0
+PML_DIVERT_M    = 0x2
+PML_DIVERT_P    = 0x3
+PML_INSERT      = 0x4
+PML_DELETE      = 0x5
+PML_COPY        = 0x6
+PML_FIND        = 0x7
+PML_CHECKSUM    = 0x8
+PML_SETFLAG     = 0x9
+PML_NEWPROG     = 0xA
+PML_MOVB        = 0x10
+PML_MOVW        = 0x11
+PML_MOVH        = 0x12
+PML_MOVS        = 0x13
+PML_ADD         = 0x20
+PML_SUB         = 0x21
+PML_MUL         = 0x22
+PML_DIV         = 0x23
+PML_AND         = 0x24
+PML_OR          = 0x25
+PML_XOR         = 0x26
+PML_SHL         = 0x27
+PML_SHR         = 0x28
+PML_JMP         = 0x30
+PML_JGT         = 0x31
+PML_JLT         = 0x32
+PML_JGE         = 0x33
+PML_JLE         = 0x34
+PML_JEQ         = 0x35
+PML_JSET        = 0x36
+
 
 # Destination type enum values.
 OCTRL_SEND_CHANNEL = 0
@@ -290,6 +320,10 @@ class octrl(object):
         if res is None or len(res) == 0:
             return None
         return SEND_M_RESPONSE(str(res[0][Raw]))
+
+    def setfilter(self, filter):
+        p = self.getbase()/SET_FILTER(filter=filter)
+        send(p)
 
 
     def setchannel(self, chanid, chantype, chanip, chanport):
