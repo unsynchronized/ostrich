@@ -37,7 +37,6 @@ typedef struct pml_packet_info {
     void *md_ptr;           /* free pointer for use by machdep layer */
 } pml_packet_info;
 
-/* XXX: doc */
 struct pmlvm_context {
     u_int8_t *m;            /* pointer to M */
     u_int32_t mlen;         /* current length of M (bytes) */
@@ -47,12 +46,19 @@ struct pmlvm_context {
     void *md_ptr;           /* free pointer; machdep layer is free to populate */
 };
 
-/* XXX: document */
+/* pmlvm_context: return the current VM context. */
 struct pmlvm_context *pmlvm_current_context(void);
 
 void pmlvm_init(u_int8_t *program, u_int32_t proglen, u_int8_t *m, u_int32_t mlen);
 
-/* XXX: document */
+/* process the packet.  
+ *
+ * returns 1 if the packet buffer should be passed on; returns 0 if the packet
+ * should be dropped.  if the return value is 1, then the pkt and pktlen values
+ * inside pinfo will be updated; use those values.
+ *
+ * maxinsns is the maximum number of instructions to execute, period.
+ */
 bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns);
 
 
@@ -87,6 +93,8 @@ bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns);
 #define PML_JLE         0x34
 #define PML_JEQ         0x35
 #define PML_JSET        0x36
+#define PML_DIVERT_M_Y  0x37
+#define PML_DIVERT_P_Y  0x38
 
 /* INSERT */
 #define PML_INSERT_M 0x0

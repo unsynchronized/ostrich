@@ -45,12 +45,12 @@ void pml_md_init(void) {
 }
 
 void pml_md_debug(const char *fmt, ...) {
-    char XXXtempbuf[1024];
+    char tempbuf[1024];
     va_list args;
     va_start(args, fmt);
-    vsnprintf(XXXtempbuf, sizeof(XXXtempbuf), fmt, args);
+    vsnprintf(tempbuf, sizeof(tempbuf), fmt, args);
     va_end(args);
-    pml_md_debug_pkt(XXXtempbuf);
+    pml_md_debug_pkt(tempbuf);
 }
 
 void pml_md_debug_pkt(char *mbuf) {
@@ -77,16 +77,9 @@ void pml_md_debug_pkt(char *mbuf) {
 }
 
 int XXXprocessing = 0;
-u_int32_t XXXother = 0, XXXips = 0, XXXtapped = 0, XXXrxcount = 0, XXXfoo = 0;
-
-struct sk_buff *lastsk = 0;
 
 /* pml_md_tap: returns 1 if this packet should be dropped; 0 if not */
 int pml_md_tap(struct sk_buff **skb) {
-    if(lastsk == *skb) {
-        XXXfoo++;
-    }
-    lastsk = *skb;
     if(XXXprocessing == 0) {
         return 0;
     }
@@ -109,7 +102,6 @@ int pml_md_tap(struct sk_buff **skb) {
         ppi.tlproto = TLPROTO_ETHERNET;
         ppi.md_ptr = (*skb);
     } else {
-        XXXother++;
         return 0;
     }
     skb_push((*skb), topush);
@@ -123,7 +115,6 @@ int pml_md_tap(struct sk_buff **skb) {
             ppi.flags.has_ip4tlhdroff = 1;
         }
     }
-    XXXips++;
     bool pret = octrl_check_command(settings, &ppi);
     if(pret == 0 || ppi.pktlen == 0) {
         retval = 1;
@@ -144,12 +135,6 @@ out:    /* we're inside linux; i think that means goto is okay */
 }
 u_int8_t *pml_md_getpbuf(struct pml_packet_info *ppi) {
     return ppi->pkt;
-}
-
-bool pml_md_putpbuf(struct pml_packet_info *ppi, u_int8_t *newpkt, u_int32_t newpktlen) {
-    ppi->pkt = newpkt;
-    ppi->pktlen = newpktlen;
-    return 1;
 }
 
 struct pmlvm_context *pml_md_alloc_context(void) {
@@ -318,7 +303,7 @@ bool pml_md_divert(struct pmlvm_context *ctx, u_int8_t channel, u_int8_t *packet
     }
     struct octrl_channel *chan = octrl_get_channel(octrl_md_retrieve_settings(), channel);
     if(chan == NULL) {
-        pml_md_debug("XXX no channel");
+        DLOG("can't get channel %d", channel);
         return 0;
     }
 

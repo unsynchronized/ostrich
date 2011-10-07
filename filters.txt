@@ -17,8 +17,10 @@ DIVERT [M|P] n length: copy M[X] or P[X] to target n, if channel is available
     results: 
         A <- 1 if success, 0 if failure
     opcodes: 
-        0x02 nn aa bb cc dd: copy M[X:(X+0xaabbccdd)] to channel n
-        0x03 nn aa bb cc dd: copy P[X:(X+0xaabbccdd)] to channel n
+        0x02 nn aa bb cc dd: copy up to M[X:(X+0xaabbccdd)] to channel n
+        0x03 nn aa bb cc dd: copy up to P[X:(X+0xaabbccdd)] to channel n
+        0x37 nn aa bb cc dd: copy up to M[X:(X+Y+0xaabbccdd)] to channel n
+        0x38 nn aa bb cc dd: copy up to P[X:(X+Y+0xaabbccdd)] to channel n
 
 INSERT [M|P]: insert A bytes (will be zeroed)
     results: 
@@ -43,7 +45,7 @@ COPY dst src: copy A bytes from source to dst[Y]
         0x06 0x02 .. .. .. ..: clear A bytes starting at P[Y]
         0x06 0x03 .. .. .. ..: clear A bytes starting at M[Y]
 
-NEWPROG src crc32: 
+NEWPROG src crc32:  (deprecated; currently removed)
     opcodes:
         0x0A 0x00 AA BB CC DD: copy A bytes from M[X] to the program; CRC32 == 0xAABBCCDD
         0x0A 0x01 AA BB CC DD: copy A bytes from P[X] to the program; CRC32 == 0xAABBCCDD

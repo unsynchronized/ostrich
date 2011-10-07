@@ -31,6 +31,8 @@ linux:
 	cp wrt150n/pmltypes.h $(LINUXROOT)/include/
 	cp wrt150n/pmlmachdep.c $(LINUXROOT)/net/
 	cp wrt150n/octrlmachdep.c $(LINUXROOT)/net/
+	cp wrt150n/defaults.c $(LINUXROOT)/net/
+	cp wrt150n/defaults.h $(LINUXROOT)/include/
 	cp common/pmlvm.c $(LINUXROOT)/net/
 	cp common/octrl.c $(LINUXROOT)/net/
 	cp common/pmlutils.c $(LINUXROOT)/net/

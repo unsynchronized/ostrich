@@ -3,6 +3,7 @@
 #include <pmlvm.h>
 #include <octrlmachdep.h>
 #include <pmlutils.h>
+#include <defaults.h>
 #include <linux/vmalloc.h>
 
 extern u_int8_t pml_fixed_m[FIXED_M_SIZE]; 
@@ -22,64 +23,34 @@ struct octrl_settings *octrl_md_retrieve_settings(void) {
     }
     memset(current_settings, 0, sizeof(struct octrl_settings));
 
-    static u_int8_t XXXprog[] = {
-/*   0 */   PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_P_N, PML_MOV_ADDR_A), 0x00, 0x00, 0x00, 0x60,
-/*   6 */   PML_ADD, PML_MATH_N, 0x1, 0x1, 0x1, 0x1,
-
-/*  12 */   PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_A), 0x00, 0x00, 0x00, 0x10,
-/*  18 */   PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_X), 0x00, 0x00, 0x00, 0x0,
-/*  24 */   PML_INSERT, PML_INSERT_M, 0x0, 0x0, 0x0, 0x0, 
-
-/*  30 */   PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_X), 0x11, 0x22, 0x33, 0x44,
-/*  36 */   PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_X, PML_MOV_ADDR_M_N), 0x0, 0x0, 0x0, 0x6,
-
-/*  42 */   PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_A), 0x00, 0x00, 0x00, 0x10,
-/*  48 */   PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_X), 0x00, 0x00, 0x00, 0x0,
-/*  54 */   PML_DELETE, PML_INSERT_M, 0x0, 0x0, 0x0, 0x0, 
-
-/*  60 */   PML_MOVS, PML_MOVS_TDB(PML_MOVS_P_LEN, PML_MOVS_ADDR_A), 0, 0, 0, 0,
-/*  66 */   PML_MOVS, PML_MOVS_TDB(PML_MOVS_M_LEN, PML_MOVS_ADDR_X), 0, 0, 0, 0,
-/*  72 */   PML_JLT, PML_JCOND_X, 0, 0, 0, 18,
-/*  78 */   PML_SUB, PML_MATH_X, 0, 0, 0, 0,
-/*  84 */   PML_INSERT, PML_INSERT_M, 0, 0, 0, 0,
-/*  90 */   PML_MOVS, PML_MOVS_TDB(PML_MOVS_P_LEN, PML_MOVS_ADDR_A), 0, 0, 0, 0,
-/*  96 */   PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_Y), 0, 0, 0, 0,
-/* 102 */   PML_COPY, PML_COPY_P_TO_M, 0, 0, 0, 0,
-/* 108 */   PML_MOVW, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_X), 0, 0, 0, 14,
-/* 114 */   PML_MOVH, PML_MOV_DSB(PML_MOV_ADDR_P_N, PML_MOV_ADDR_Y), 0, 0, 0, 24,
-/* 120 */   PML_MOVH, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_A), 0, 0, 0, 0,
-/* 126 */   PML_MOVH, PML_MOV_DSB(PML_MOV_ADDR_A, PML_MOV_ADDR_M_N), 0, 0, 0, 24,
-/* 132 */   PML_CHECKSUM, PML_CHECKSUM_IPV4_M_X, 0, 0, 0, 0,
-/* 138 */   PML_MOVH, PML_MOV_DSB(PML_MOV_ADDR_A, PML_MOV_ADDR_M_N), 0, 0, 0, 24,
-
-/* 144 */   PML_MOVH, PML_MOV_DSB(PML_MOV_ADDR_P_N, PML_MOV_ADDR_Y), 0, 0, 0, 40,
-/* 150 */   PML_MOVH, PML_MOV_DSB(PML_MOV_ADDR_N, PML_MOV_ADDR_A), 0, 0, 0, 0,
-/* 156 */   PML_MOVH, PML_MOV_DSB(PML_MOV_ADDR_A, PML_MOV_ADDR_M_N), 0, 0, 0, 40,
-/* 132 */   PML_CHECKSUM, PML_CHECKSUM_UDP4_M_X, 0, 0, 0, 0,
-/*     */
-    };
     current_settings->maxinsns = 100;
-    current_settings->processing_enabled = 1;
+    current_settings->processing_enabled = OCTRL_DEFAULT_PROCESSING_ENABLED;
     current_settings->savedmlen = 0;
     current_settings->savedm = NULL;
-    current_settings->program = vmalloc(sizeof(XXXprog));
-    if(current_settings->program != NULL) {
-        current_settings->has_program = 1;
-        current_settings->proglen = sizeof(XXXprog);
-        memcpy(current_settings->program, XXXprog, sizeof(XXXprog));    /* XXX: wasteful to alloc for this */
+    if(octrl_default_program_len > 0) {
+        current_settings->program = vmalloc(octrl_default_program_len);
+        if(current_settings->program != NULL) {
+            current_settings->has_program = 1;
+            current_settings->proglen = octrl_default_program_len;
+            memcpy(current_settings->program, octrl_default_program, octrl_default_program_len);    /* XXX: slightly wasteful to alloc for this */
+        }
     }
 
-    octrl_md_set_cookie("cookie", 6);
-    current_settings->cookie_enabled = 1;
-
-    current_settings->commandip = kmalloc(4, GFP_KERNEL);
-    u_int32_t inaddr = htonl(0xa0a0102);   /* XXX: 10.10.1.2 */
-    if(current_settings->commandip != NULL) {
-        memcpy(current_settings->commandip, &inaddr, 4);
-        current_settings->commandiplen = 4;
-        current_settings->has_commandip = 1;
+    if(octrl_default_cookie_len > 0) {
+        octrl_md_set_cookie(octrl_default_cookie, octrl_default_cookie_len);
     }
-    current_settings->commandport = 4142;
+    current_settings->cookie_enabled = OCTRL_DEFAULT_COOKIE_ENABLED;
+
+    if(octrl_default_commandip_len > 0) {
+        current_settings->commandip = kmalloc(octrl_default_commandip_len, GFP_KERNEL);
+        u_int32_t inaddr = htonl(0xa0a0102);
+        if(current_settings->commandip != NULL) {
+            memcpy(current_settings->commandip, &inaddr, octrl_default_commandip_len);
+            current_settings->commandiplen = octrl_default_commandip_len;
+            current_settings->has_commandip = 1;
+        }
+    }
+    current_settings->commandport = OCTRL_DEFAULT_COMMANDPORT;
     return current_settings;
 }
 
@@ -144,7 +115,6 @@ void octrl_md_set_filter(u_int8_t *filter, u_int32_t filterlen) {
             ctx->proglen = filterlen;
         }
     }
-    pml_md_debug("XXX fl %d", ctx->proglen);
     octrl_md_save_settings();
 }
 void octrl_md_del_channel(u_int8_t id) {
@@ -160,8 +130,8 @@ void octrl_md_del_channel(u_int8_t id) {
             for(j = i; j < (current_settings->nchannels-1); j++) {
                 current_settings->channels[j] = current_settings->channels[j+1];
             }
-            /* XXX: don't bother reallocing here, but you probably should in a 
-             * real embedded environment.  here we only free if they're all gone
+            /* XXX: should just switch to a linked list here, we're note even
+             * indexing on id
              */
             current_settings->nchannels = current_settings->nchannels - 1;
             if(current_settings->nchannels == 0) {

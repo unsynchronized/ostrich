@@ -106,7 +106,6 @@ static u_int16_t pml_sum_finish(u_int32_t s) {
 
 #define CHECK_MLEN check_mlen
 static bool check_mlen(u_int32_t idx, u_int32_t len) {
-    /* XXX: double check this is okay to prevent overflows */
     if(len == 0) {
         DLOG("CHECK_MLEN len is 0");
         return 0;
@@ -831,7 +830,6 @@ bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns) {
     while(insncount < maxinsns && stopflag == 0 && pc < ctx->proglen) {
         p = pml_md_getpbuf(pinfo);
         const u_int8_t opcode = ctx->prog[pc];
-        //pml_md_debug("XXX pc %d a %08x x %08x y %08x", pc, a, x, y);
 #ifdef DEBUG
         DLOG("%04d/%04d: PC % 4d: a %08x x %08x y %08x : %02x %02x %02x %02x %02x %02x", insncount, maxinsns, pc, a, x, y,
                 (ctx->prog[pc] & 0xff), (ctx->prog[pc+1] & 0xff),
@@ -839,7 +837,6 @@ bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns) {
                 (ctx->prog[pc+4] & 0xff), (ctx->prog[pc+5] & 0xff));
 #endif
         insncount++;
-        XXXrxcount++;
         switch(opcode) {
             case PML_SETFLAG:
                 {
@@ -859,7 +856,6 @@ bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns) {
             case PML_EXIT:
                 stopflag = 1;
                 break;
-            /* XXX default */
             case PML_COPY:
                 if(ctx->prog[pc+1] > PML_COPY_MAX) {
                     a = 0;
@@ -867,6 +863,7 @@ bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns) {
                     pml_copy(p);
                 }
                 break;
+#if 0
             case PML_NEWPROG: {
                     const u_int8_t type = ctx->prog[pc+1];
                     u_int32_t crc = EXTRACT4(&ctx->prog[pc+2]);
@@ -903,6 +900,7 @@ bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns) {
                     }
                 }
                 break;
+#endif
             case PML_MOVB:
             case PML_MOVW:
             case PML_MOVH:
@@ -1173,13 +1171,42 @@ bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns) {
             case PML_DIVERT_M:
                 {
                     const u_int8_t channel = ctx->prog[pc+1];
-                    const int32_t n = (int32_t) EXTRACT4(&ctx->prog[pc+2]);
+                    u_int32_t n = EXTRACT4(&ctx->prog[pc+2]);
                     if(CHECK_MLEN(x, n) == 0) {
-                        DLOG("DIVERT M: exists past end of M x 0x%x n 0x%x", x, n);
+                        if(x >= ctx->mlen) {
+                            DLOG("DIVERT M: exists past end of M x 0x%x n 0x%x", x, n);
+                            a = 0;
+                            break;
+                        } else {
+                            n = ctx->mlen-x;
+                        }
+                    }
+                    if(pml_md_divert(ctx, channel, &ctx->m[x], n)) {
+                        a = 1;
+                    } else {
+                        a = 0;
+                    }
+                }
+            case PML_DIVERT_M_Y:
+                {
+                    const u_int8_t channel = ctx->prog[pc+1];
+                    const u_int32_t n = EXTRACT4(&ctx->prog[pc+2]);
+                    if((y+n) < y) {
+                        DLOG("DIVERT M+Y+n: oflow");
                         a = 0;
                         break;
                     }
-                    if(pml_md_divert(ctx, channel, &ctx->m[x], n)) {
+                    u_int32_t off = y+n;
+                    if(CHECK_MLEN(x, off) == 0) {
+                        if(x >= ctx->mlen) {
+                            DLOG("DIVERT M+Y: exists past end of M x 0x%x y 0x%x n 0x%x", x, y, n);
+                            a = 0;
+                            break;
+                        } else {
+                            off = ctx->mlen-x;
+                        }
+                    }
+                    if(pml_md_divert(ctx, channel, &ctx->m[x], off)) {
                         a = 1;
                     } else {
                         a = 0;
@@ -1189,13 +1216,43 @@ bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns) {
             case PML_DIVERT_P:
                 {
                     const u_int8_t channel = ctx->prog[pc+1];
-                    const int32_t n = (int32_t) EXTRACT4(&ctx->prog[pc+2]);
+                    u_int32_t n = EXTRACT4(&ctx->prog[pc+2]);
                     if(CHECK_PLEN(x, n) == 0) {
-                        DLOG("DIVERT P: exists past end of P x 0x%x n 0x%x", x, n);
+                        if(x >= curppi->pktlen) {
+                            DLOG("DIVERT P: exists past end of P x 0x%x n 0x%x", x, n);
+                            a = 0;
+                            break;
+                        } else {
+                            n = curppi->pktlen - x;
+                        }
+                    }
+                    if(pml_md_divert(ctx, channel, &p[x], n)) {
+                        a = 1;
+                    } else {
+                        a = 0;
+                    }
+                }
+                break;
+            case PML_DIVERT_P_Y:
+                {
+                    const u_int8_t channel = ctx->prog[pc+1];
+                    const int32_t n = (int32_t) EXTRACT4(&ctx->prog[pc+2]);
+                    if((y+n) < y) {
+                        DLOG("DIVERT P+Y+n: oflow");
                         a = 0;
                         break;
                     }
-                    if(pml_md_divert(ctx, channel, &p[x], n)) {
+                    u_int32_t off = y+n;
+                    if(CHECK_PLEN(x, y+n) == 0) {
+                        if(x >= curppi->pktlen) {
+                            DLOG("DIVERT P: exists past end of P x 0x%x n y 0x%x 0x%x", x, y, n);
+                            a = 0;
+                            break;
+                        } else {
+                            off = curppi->pktlen - x;
+                        }
+                    }
+                    if(pml_md_divert(ctx, channel, &p[x], off)) {
                         a = 1;
                     } else {
                         a = 0;
@@ -1246,7 +1303,6 @@ bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns) {
         }
         pc += 6;
     }
-    //struct sk_buff *skb = (struct sk_buff *)pinfo->md_ptr; pml_md_debug("proc ic %d  in_irq %d  skbusers %d xx", insncount, in_irq(), atomic_read(&skb->users));   /* XXX */
 
     return processflag;
 }
