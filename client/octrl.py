@@ -36,6 +36,7 @@ OCTRL_SEND_UDPIP4  = 1
 
 # Channel types.
 OCTRL_CHANNEL_UDP4 = 0
+OCTRL_CHANNEL_RAW = 0xff
 
 # Currently-defined flags.
 OCTRL_FLAG_ENABLE_COOKIE = 0
@@ -154,7 +155,9 @@ class SEND_M_RESPONSE(Packet):
 class OCtrlChannel(Packet):
     fields_desc = [
         XByteField("id", 0),
-        IntEnumField("type", OCTRL_CHANNEL_UDP4, {OCTRL_CHANNEL_UDP4: "OCTRL_CHANNEL_UDP4"}),
+        IntEnumField("type", OCTRL_CHANNEL_UDP4, 
+            {OCTRL_CHANNEL_UDP4: "OCTRL_CHANNEL_UDP4",
+             OCTRL_CHANNEL_RAW: "OCTRL_CHANNEL_RAW"}),
         StrFixedLenField("addr", '', 16),
         IntField("port", 0)
     ]
