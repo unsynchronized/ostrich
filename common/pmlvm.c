@@ -120,8 +120,9 @@ static bool check_mlen(u_int32_t idx, u_int32_t len) {
     return 0;
 }
 
-#define CHECK_PLEN check_plen
-static bool check_plen(u_int32_t idx, u_int32_t len) {
+#define CHECK_PLEN(i,l) check_plen(curppi, i, l)
+
+bool check_plen(struct pml_packet_info *curppi, u_int32_t idx, u_int32_t len) {
     if(len == 0) {
         DLOG("CHECK_PLEN len is 0");
         return 0;

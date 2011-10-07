@@ -61,6 +61,11 @@ void pmlvm_init(u_int8_t *program, u_int32_t proglen, u_int8_t *m, u_int32_t mle
  */
 bool pmlvm_process(struct pml_packet_info *pinfo, u_int32_t maxinsns);
 
+/* utility function to check a range against the current P length; returns 0 if 
+ * the range is invalid
+ */
+bool check_plen(struct pml_packet_info *curppi, u_int32_t idx, u_int32_t len);
+
 
 /* PML instructions */
 #define PML_EXIT        0x0

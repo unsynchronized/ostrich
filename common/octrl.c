@@ -5,24 +5,6 @@
 #include <octrl.h>
 #include <ostversion.h>
 
-/* XXX REMOVE ALL OF THIS */
-#define CHECK_PLEN check_plen
-static struct pml_packet_info *curppi;
-static bool check_plen(u_int32_t idx, u_int32_t len) {  /*  XXX XXX XXX REMOVE */
-    if(len == 0) {
-        DLOG("CHECK_PLEN len is 0");
-        return 0;
-    }
-    u_int32_t endidx = idx + len - 1;
-    if(endidx < idx) {
-        return 0;
-    }
-    if(endidx < curppi->pktlen) {
-        return 1;
-    }
-    return 0;
-}
-
 void octrl_init(void) {
 }
 
@@ -151,11 +133,10 @@ bool octrl_check_command(struct octrl_settings *settings, struct pml_packet_info
     }
     const int iphdr = ppi->iphdroff, ip4tlhdroff = ppi->ip4tlhdroff;
     u_int8_t ipver = (p[iphdr] >> 4);
-    curppi = ppi;
     if(settings->has_commandip && settings->commandiplen > 0) {
         if(ipver == 6) {
             u_int32_t tocheck = settings->commandiplen > 16 ? 16 : settings->commandiplen;
-            if(tocheck == 0 || CHECK_PLEN(iphdr+8, 16) == 0) {
+            if(tocheck == 0 || check_plen(ppi,iphdr+8, 16) == 0) {
                 return 1;
             }
             u_int32_t i;
@@ -166,7 +147,7 @@ bool octrl_check_command(struct octrl_settings *settings, struct pml_packet_info
             }
         } else {
             u_int32_t tocheck = settings->commandiplen > 4 ? 4 : settings->commandiplen;
-            if(tocheck == 0 || CHECK_PLEN(iphdr+12, 4) == 0) {
+            if(tocheck == 0 || check_plen(ppi,iphdr+12, 4) == 0) {
                 return 1;
             }
             u_int32_t i = 0;
@@ -178,7 +159,7 @@ bool octrl_check_command(struct octrl_settings *settings, struct pml_packet_info
         }
     }
     u_int8_t protoff = ipver == 6 ? 6 : 9;
-    if(CHECK_PLEN(iphdr+protoff, 1) == 0) {
+    if(check_plen(ppi, iphdr+protoff, 1) == 0) {
         return 1;
     }
     u_int8_t protocol = p[iphdr+protoff];
@@ -186,14 +167,14 @@ bool octrl_check_command(struct octrl_settings *settings, struct pml_packet_info
     if(protocol == 17) {
         dataoff = 8;
     } else if(protocol == 6) {
-        if(CHECK_PLEN(ip4tlhdroff+12, 1) == 0) {
+        if(check_plen(ppi, ip4tlhdroff+12, 1) == 0) {
             return 1;
         }
         dataoff = p[ip4tlhdroff+12] * 4;
     } else {
         return 1;
     }
-    if(CHECK_PLEN(ip4tlhdroff+dataoff, 1) == 0) {
+    if(check_plen(ppi, ip4tlhdroff+dataoff, 1) == 0) {
         return 1;
     }
     u_int16_t port = ((p[ip4tlhdroff+2] & 0xff) << 8) | (p[ip4tlhdroff+3] & 0xff);
@@ -225,12 +206,12 @@ bool octrl_check_command(struct octrl_settings *settings, struct pml_packet_info
         }
         dataoff += (i + settings->cookielen);
     }
-    if(CHECK_PLEN(ip4tlhdroff+dataoff, 2) == 0) {
+    if(check_plen(ppi, ip4tlhdroff+dataoff, 2) == 0) {
         DLOG("command packet too short for command data len");
         return 1;
     }
     u_int16_t pktlen = ((p[ip4tlhdroff+dataoff] & 0xff) << 8) | (p[ip4tlhdroff+dataoff+1] & 0xff);
-    if(CHECK_PLEN(ip4tlhdroff+dataoff+2, pktlen) == 0) {
+    if(check_plen(ppi, ip4tlhdroff+dataoff+2, pktlen) == 0) {
         DLOG("command packet too short for command data (len %hx)", pktlen);
         return 1;
     }
@@ -249,7 +230,6 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
     struct octrl_channel dummychan;
     while(i < iend) {
         const u_int8_t opcode = p[i];
-        DLOG("XXX OC: octrl 0x%x  i %d  iend %d", opcode, i, iend);
         
         switch(opcode) {
             case OCTRL_SEND_VERSION:
@@ -369,10 +349,12 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
                     i += 4;
                     u_int16_t mlen = EXTRACT2(&p[i]);
                     i += 2;
-                    if((i + mlen) > iend) {  /* XXX oflow check */
+                    if((i + mlen) < i) {
                         return 0;
                     }
-                    DLOG("XXX maddr %x  mlen %x", maddr, mlen & 0xffff);
+                    if((i + mlen) > iend) {  
+                        return 0;
+                    }
                     octrl_md_set_m(maddr, &p[i], mlen);
                     i += mlen;
                 }
@@ -387,7 +369,10 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
                     i += 2;
                     u_int16_t dlen = EXTRACT2(&p[i]);
                     i += 2;
-                    if((i + dlen) > iend) {  /* XXX oflow check */
+                    if((i + dlen) < i) {
+                        return 0;
+                    }
+                    if((i + dlen) > iend) {  
                         return 0;
                     }
                     octrl_md_set_flag(flag, &p[i], dlen);
@@ -403,7 +388,7 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
                     i++;
                     u_int16_t clen = EXTRACT2(&p[i]);
                     i += 2;
-                    if(clen > 0 && (i+clen) > iend) {    /* XXX oflow check */
+                    if(clen > 0 && (i+clen) > iend) {    
                         return 0;
                     }
                     if(opcode == OCTRL_SET_CMDIP) {
@@ -416,9 +401,7 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
                 break;
             case OCTRL_SET_CMDPORT:
                 i++;
-                DLOG("XXX i %d  iend %d", i, iend);
                 if((i+2) > iend) {
-                    DLOG("XXX ZPOO");
                     return 0;
                 }
                 const u_int16_t newport = EXTRACT2(&p[i]);
@@ -444,11 +427,10 @@ bool octrl_handle_commands(struct octrl_settings *settings, struct pml_packet_in
                 break;
             default:
                 DLOG("invalid octrl command received: 0x%x", opcode);
-                i++;    /* XXX; should return */
+                return 0;
                 break;
         }
     }
-    if(i != iend) {DLOG("XXX i wrong i 0x%x", i); } /* XXX */
     return 0;
 }
    
