@@ -54,7 +54,7 @@ struct octrl_settings *octrl_md_retrieve_settings(void) {
 /* 132 */   PML_CHECKSUM, PML_CHECKSUM_UDP4_M_X, 0, 0, 0, 0,
 /*     */
     };
-    current_settings->maxinsns = 100;
+    current_settings->maxinsns = 10;
     current_settings->processing_enabled = 1;
     current_settings->savedmlen = 0;
     current_settings->savedm = NULL;
@@ -110,7 +110,10 @@ bool octrl_md_send_channel(struct octrl_channel *chan, u_int8_t *buf, u_int32_t 
                 msg.msg_name = &daddr;
                 msg.msg_namelen = sizeof(daddr);
                 msg.msg_flags = 0;
+                u_int16_t tempp = pml_dbg_socket->sk->sport;
+                pml_dbg_socket->sk->sport = htons(current_settings->commandport);
                 udp_sendmsg(pml_dbg_socket->sk, &msg, len);
+                pml_dbg_socket->sk->sport = tempp;
                 return 1;
             }
             break;
